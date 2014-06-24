@@ -4,7 +4,9 @@ def corn3D():
     x = 0
     for u in u:
         x=x+1
-    if x == 3:               
+    
+    if x == 3:  
+        # here are basic stuff i will use later frame range and a table    
         frame = nuke.frame()
         panel = nuke.Panel("Card to track")
         first = nuke.Root().knob('first_frame').getValue()
@@ -15,7 +17,7 @@ def corn3D():
         last = str(last)
         basicRange = first+"-"+last
         panel.addSingleLineInput("Range:", basicRange)
-        panel.addEnumerationPulldown("Output:", "Tracker CornerPin Both ")
+        panel.addEnumerationPulldown("Output:", "Tracker CornerPin CornerPin(matrix) All ")
         panel.addSingleLineInput("Ref frame:", frame)
         panel.addBooleanCheckBox('Translate Only', False)
         panel.show()
@@ -33,7 +35,8 @@ def corn3D():
         rangeB=int(rangeB)
         rangeA=int(rangeA)
         rangeB=int(rangeB)
-
+        
+        #here coming the main part where tracker and corner pin are created 
         if Axis == False:
             n = nuke.selectedNodes("Card2")
             for n in n:
@@ -198,8 +201,6 @@ def corn3D():
             LL = nuke.toNode("LL")
             RL = nuke.toNode("RL")
         
-            
-         
             nuke.delete(mainA)
             nuke.delete(LU)
             nuke.delete(RU)
@@ -213,6 +214,91 @@ def corn3D():
                 nuke.delete(corner)
             if Output == "CornerPin":
                 nuke.delete(n)
+            if Output == "CornerPin(matrix)" or Output == "All":
+                print "fdsfdsfsdf"
+                projectionMatrixTo = nuke.math.Matrix4()
+                projectionMatrixFrom = nuke.math.Matrix4()
+
+                #dir(projectionMatrix)
+                theCornerpinNode = corner
+                theNewCornerpinNode = nuke.nodes.CornerPin2D()
+                theNewCornerpinNode['transform_matrix'].setAnimated()
+
+                imageWidth = float(theCornerpinNode.width())
+                imageHeight = float(theCornerpinNode.height())
+
+                first = rangeA                                
+                last = rangeB
+                frame = first
+                while frame<last+1:
+                    to1x = theCornerpinNode['to1'].valueAt(frame)[0]
+                    to1y = theCornerpinNode['to1'].valueAt(frame)[1]
+                    to2x = theCornerpinNode['to2'].valueAt(frame)[0]
+                    to2y = theCornerpinNode['to2'].valueAt(frame)[1]
+                    to3x = theCornerpinNode['to3'].valueAt(frame)[0]
+                    to3y = theCornerpinNode['to3'].valueAt(frame)[1]
+                    to4x = theCornerpinNode['to4'].valueAt(frame)[0]
+                    to4y = theCornerpinNode['to4'].valueAt(frame)[1] 
+                    
+                   
+                    from1x = theCornerpinNode['from1'].valueAt(frame)[0]
+                    from1y = theCornerpinNode['from1'].valueAt(frame)[1]
+                    from2x = theCornerpinNode['from2'].valueAt(frame)[0]
+                    from2y = theCornerpinNode['from2'].valueAt(frame)[1]
+                    from3x = theCornerpinNode['from3'].valueAt(frame)[0]
+                    from3y = theCornerpinNode['from3'].valueAt(frame)[1]
+                    from4x = theCornerpinNode['from4'].valueAt(frame)[0]
+                    from4y = theCornerpinNode['from4'].valueAt(frame)[1]
+
+                    projectionMatrixTo.mapUnitSquareToQuad(to1x,to1y,to2x,to2y,to3x,to3y,to4x,to4y)
+                    projectionMatrixFrom.mapUnitSquareToQuad(from1x,from1y,from2x,from2y,from3x,from3y,from4x,from4y)
+                    theCornerpinAsMatrix = projectionMatrixTo*projectionMatrixFrom.inverse()
+                    theCornerpinAsMatrix.transpose()
+                    
+                    a0 = theCornerpinAsMatrix[0]
+                    a1 = theCornerpinAsMatrix[1]
+                    a2 = theCornerpinAsMatrix[2]
+                    a3 = theCornerpinAsMatrix[3]    
+                    a4 = theCornerpinAsMatrix[4]
+                    a5 = theCornerpinAsMatrix[5]
+                    a6 = theCornerpinAsMatrix[6]
+                    a7 = theCornerpinAsMatrix[7]   
+                    a8 = theCornerpinAsMatrix[8]
+                    a9 = theCornerpinAsMatrix[9]
+                    a10 = theCornerpinAsMatrix[10]
+                    a11 = theCornerpinAsMatrix[11]    
+                    a12 = theCornerpinAsMatrix[12]
+                    a13 = theCornerpinAsMatrix[13]
+                    a14 = theCornerpinAsMatrix[14]
+                    a15 = theCornerpinAsMatrix[15]
+
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a0,frame,0)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a1,frame,1)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a2,frame,2)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a3,frame,3)    
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a4,frame,4)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a5,frame,5)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a6,frame,6)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a7,frame,7)    
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a8,frame,8)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a9,frame,9)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a10,frame,10)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a11,frame,11)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a12,frame,12)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a13,frame,13)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a14,frame,14)
+                    theNewCornerpinNode['transform_matrix'].setValueAt(a15,frame,15)
+                    
+
+                    theNewCornerpinNode['xpos'].setValue(x+300)
+                    theNewCornerpinNode['ypos'].setValue(y)
+                    theNewCornerpinNode['label'].setValue("matrix")
+                    
+                    frame = frame + 1
+            if Output == "CornerPin(matrix)":
+                nuke.delete(corner)
+                nuke.delete(n)
+       # here is a code for Reconcile only
         else:
             n = nuke.selectedNodes("Card2")
             for n in n:
