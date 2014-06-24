@@ -1,6 +1,74 @@
-def corn3D():
-    import nuke
+import nuke
 
+
+def _card_to_track_panel():
+    """GUI panel for getting card_to_track settings
+
+    Args:
+        N/A
+
+    Returns:
+        {
+            'frange': (str) Frame Range,
+            'first': (int) First Frame,
+            'last': (int) Last Frame,
+            'ref_frame': (int) Reference Frame,
+            'output': Output Type,
+            'axis': Translate Only Bool
+         }
+
+    Raises:
+        N/A
+
+    """
+    # Grab our current frame to be used as default for ref_frame
+    frame = nuke.frame()
+
+    panel_results = {}
+
+    # And our current frange to use as the default for range
+    first = int(nuke.Root()['first_frame'].value())
+    last = int(nuke.Root()['last_frame'].value())
+
+    # Construct our panel
+    panel = nuke.Panel("Card to track")
+
+    panel.addSingleLineInput(
+        "Range:",
+        "{first}-{last}".format(
+            first=first,
+            last=last,
+        )
+    )
+    panel.addEnumerationPulldown(
+        "Output:",
+        "All "
+        "CornerPin "
+        "CornerPin(Matrix) "
+        "Roto Tracker"
+    )
+    panel.addSingleLineInput("Ref frame:", frame)
+    panel.addBooleanCheckBox('Translate Only', False)
+
+    # Show Panel
+    if not panel.show():
+        return
+
+    # Get our entered values
+    panel_results['frange'] = panel.value("Range:")
+    panel_results['ref_frame'] = int(panel.value("Ref frame:"))
+    panel_results['output'] = panel.value("Output:")
+    panel_results['axis'] = panel.value("Translate Only")
+
+    # Split returned range
+    first, last = panel_results['frange'].split("-")
+    panel_results['first'] = int(first)
+    panel_results['last'] = int(last)
+
+    return panel_results
+
+
+def corn3D():
     nodes = nuke.selectedNodes()
 
     if len(nodes) != 3:
