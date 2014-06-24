@@ -434,6 +434,7 @@ def corn3D():
 
                 #mainA['translate'].setValue(trans)
                 #mainA['rotate'].setValue(rot)
+                mainA['xform_order'].setValue(1)
                 if traA is True:
                     mainA['translate'].copyAnimations(n['translate'].animations())
                 else:
@@ -442,7 +443,7 @@ def corn3D():
                 if rotA is True:
                     mainA['rotate'].copyAnimations(n['rotate'].animations())
                 else:
-                    mainA['rotate'].setValue(trans)
+                    mainA['rotate'].setValue(rot)
 
 
 
@@ -451,6 +452,7 @@ def corn3D():
                 mainA['ypos'].setValue(y)
                 
                 LU = nuke.nodes.Axis()
+                LU['xform_order'].setValue(1)
                 LU['translate'].setValue([-0.5*unifscale*scalingx,aspect*0.5*unifscale*scalingy,0])
                 LU.setInput(0,mainA)
                 LU['name'].setValue('LU')
@@ -458,6 +460,8 @@ def corn3D():
                 LU['ypos'].setValue(y)        
                 
                 RU = nuke.nodes.Axis()
+                RU['xform_order'].setValue(1)
+
                 RU['translate'].setValue([0.5*unifscale*scalingx,aspect*0.5*unifscale*scalingy,0])
                 RU.setInput(0,mainA)
                 RU['name'].setValue('RU')
