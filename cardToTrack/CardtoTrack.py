@@ -1,4 +1,7 @@
-import nuke
+try:
+    import nuke
+except ImportError:
+    pass
 
 
 def _card_to_track_panel():
@@ -81,21 +84,21 @@ def corn3D():
     # Assign all of our required nodes to variables
     for node in nodes:
         if node.Class() == 'Camera2':
-            Cam = node
+            camera = node
         elif node.Class() == 'Card2':
             card = node
         else:
             background = node
 
     # Check that we have a node at each variable
-    if not Cam or not card or not background:
+    if not camera or not card or not background:
         nuke.message(
             "No {camera}{cc}{card}{cb}{background} selected. Please select a "
             "camera, a background, and the card you wish to track.".format(
-                camera='camera' if not Cam else '',
-                cc=', ' if not Cam and not card else '',
+                camera='camera' if not camera else '',
+                cc=', ' if not camera and not card else '',
                 card='card' if not card else '',
-                cb=', ' if (not Cam or not card) and not background else '',
+                cb=', ' if (not camera or not card) and not background else '',
                 background='background' if not background else ''
             )
         )
@@ -226,32 +229,32 @@ def corn3D():
 
         upper_left_track = nuke.nodes.Reconcile3D()
         upper_left_track.setInput(2, upper_left)
-        upper_left_track.setInput(1, Cam)
-        upper_left_track.setInput(0, BG)
+        upper_left_track.setInput(1, camera)
+        upper_left_track.setInput(0, background)
         upper_left_track['name'].setValue("UpperLeftTrack")
         upper_left_track['xpos'].setValue(x)
         upper_left_track['ypos'].setValue(y)
 
         upper_right_track = nuke.nodes.Reconcile3D()
         upper_right_track.setInput(2, upper_right)
-        upper_right_track.setInput(1, Cam)
-        upper_right_track.setInput(0, BG)
+        upper_right_track.setInput(1, camera)
+        upper_right_track.setInput(0, background)
         upper_right_track['name'].setValue("UpperRightTrack")
         upper_right_track['xpos'].setValue(x)
         upper_right_track['ypos'].setValue(y)
 
         lower_left_track = nuke.nodes.Reconcile3D()
         lower_left_track.setInput(2, lower_left)
-        lower_left_track.setInput(1, Cam)
-        lower_left_track.setInput(0, BG)
+        lower_left_track.setInput(1, camera)
+        lower_left_track.setInput(0, background)
         lower_left_track['name'].setValue("LowerLeftTrack")
         lower_left_track['xpos'].setValue(x)
         lower_left_track['ypos'].setValue(y)
 
         lower_right_track = nuke.nodes.Reconcile3D()
         lower_right_track.setInput(2, lower_right)
-        lower_right_track.setInput(1, Cam)
-        lower_right_track.setInput(0, BG)
+        lower_right_track.setInput(1, camera)
+        lower_right_track.setInput(0, background)
         lower_right_track['name'].setValue("LowerRightTrack")
         lower_right_track['xpos'].setValue(x)
         lower_right_track['ypos'].setValue(y)
@@ -311,89 +314,67 @@ def corn3D():
 
         if Output == "Tracker":
             nuke.delete(corner)
-        if Output == "CornerPin":
+        elif Output == "CornerPin":
             nuke.delete(card)
-        if Output == "CornerPin(matrix)" or Output == "All" or Output == "Roto":
-            print "by Alexey Kuchinsky"
-            projectionMatrixTo = nuke.math.Matrix4()
-            projectionMatrixFrom = nuke.math.Matrix4()
+        elif Output in ["CornerPin(matrix)", "All", "Roto"]:
 
-            #dir(projectionMatrix)
-            theCornerpinNode = corner
-            theNewCornerpinNode = nuke.nodes.CornerPin2D()
-            theNewCornerpinNode['transform_matrix'].setAnimated()
+            to_matrix = nuke.math.Matrix4()
+            from_matrix = nuke.math.Matrix4()
 
-            imageWidth = float(theCornerpinNode.width())
-            imageHeight = float(theCornerpinNode.height())
+            corner_new = nuke.nodes.CornerPin2D()
+            corner_new['transform_matrix'].setAnimated()
 
             first = rangeA
             last = rangeB
             frame = first
-            while frame<last+1:
-                to1x = theCornerpinNode['to1'].valueAt(frame)[0]
-                to1y = theCornerpinNode['to1'].valueAt(frame)[1]
-                to2x = theCornerpinNode['to2'].valueAt(frame)[0]
-                to2y = theCornerpinNode['to2'].valueAt(frame)[1]
-                to3x = theCornerpinNode['to3'].valueAt(frame)[0]
-                to3y = theCornerpinNode['to3'].valueAt(frame)[1]
-                to4x = theCornerpinNode['to4'].valueAt(frame)[0]
-                to4y = theCornerpinNode['to4'].valueAt(frame)[1]
+            while frame < last + 1:
 
+                # We'll grab all of our current frame's corners using
+                # some list comprehensions.
+                to_corners = [
+                    corner[knob].valueAt(frame) for knob in [
+                        'to1', 'to2', 'to3', 'to4'
+                    ]
+                ]
+                # This will return a list with 4 elements, but those
+                # elements will be a tuple pair. We need to unpack the two
+                # members of each tuple into a flat list.
+                to_corners = [
+                    value for values in to_corners for value in values
+                ]
 
-                from1x = theCornerpinNode['from1'].valueAt(frame)[0]
-                from1y = theCornerpinNode['from1'].valueAt(frame)[1]
-                from2x = theCornerpinNode['from2'].valueAt(frame)[0]
-                from2y = theCornerpinNode['from2'].valueAt(frame)[1]
-                from3x = theCornerpinNode['from3'].valueAt(frame)[0]
-                from3y = theCornerpinNode['from3'].valueAt(frame)[1]
-                from4x = theCornerpinNode['from4'].valueAt(frame)[0]
-                from4y = theCornerpinNode['from4'].valueAt(frame)[1]
+                # Same as the above. We get a list with tuple elements, then
+                # unpack it into a flat list.
+                from_corners = [
+                    corner[knob].valueAt(frame) for knob in [
+                        'from1', 'from2', 'from3', 'from4'
+                    ]
+                ]
+                from_corners = [
+                    value for values in from_corners for value in values
+                ]
 
-                projectionMatrixTo.mapUnitSquareToQuad(to1x,to1y,to2x,to2y,to3x,to3y,to4x,to4y)
-                projectionMatrixFrom.mapUnitSquareToQuad(from1x,from1y,from2x,from2y,from3x,from3y,from4x,from4y)
-                theCornerpinAsMatrix = projectionMatrixTo*projectionMatrixFrom.inverse()
-                theCornerpinAsMatrix.transpose()
+                # Pass our flat lists into the matrix methods.
+                to_matrix.mapUnitSquareToQuad(*to_corners)
+                from_matrix.mapUnitSquareToQuad(*from_corners)
 
-                a0 = theCornerpinAsMatrix[0]
-                a1 = theCornerpinAsMatrix[1]
-                a2 = theCornerpinAsMatrix[2]
-                a3 = theCornerpinAsMatrix[3]
-                a4 = theCornerpinAsMatrix[4]
-                a5 = theCornerpinAsMatrix[5]
-                a6 = theCornerpinAsMatrix[6]
-                a7 = theCornerpinAsMatrix[7]
-                a8 = theCornerpinAsMatrix[8]
-                a9 = theCornerpinAsMatrix[9]
-                a10 = theCornerpinAsMatrix[10]
-                a11 = theCornerpinAsMatrix[11]
-                a12 = theCornerpinAsMatrix[12]
-                a13 = theCornerpinAsMatrix[13]
-                a14 = theCornerpinAsMatrix[14]
-                a15 = theCornerpinAsMatrix[15]
+                corner_pin_matrix = to_matrix * from_matrix.inverse()
+                corner_pin_matrix.transpose()
 
-                theNewCornerpinNode['transform_matrix'].setValueAt(a0,frame,0)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a1,frame,1)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a2,frame,2)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a3,frame,3)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a4,frame,4)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a5,frame,5)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a6,frame,6)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a7,frame,7)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a8,frame,8)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a9,frame,9)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a10,frame,10)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a11,frame,11)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a12,frame,12)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a13,frame,13)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a14,frame,14)
-                theNewCornerpinNode['transform_matrix'].setValueAt(a15,frame,15)
+                for i in xrange(16):
+                    corner_new['transform_matrix'].setValueAt(
+                        corner_pin_matrix[i],
+                        frame,
+                        i
+                    )
 
+                corner_new['xpos'].setValue(x + 300)
+                corner_new['ypos'].setValue(y)
+                corner_new['label'].setValue(
+                    "{label}Matrix".format(label=card_label)
+                )
 
-                theNewCornerpinNode['xpos'].setValue(x+300)
-                theNewCornerpinNode['ypos'].setValue(y)
-                theNewCornerpinNode['label'].setValue(card_label +"matrix")
-
-                frame = frame + 1
+                frame += 1
 
 
 
@@ -409,7 +390,7 @@ def corn3D():
                 last = int(last)+1
                 frame = first
 
-                cor = theNewCornerpinNode
+                cor = corner_new
                 Roto = nuke.nodes.Roto()
                 Roto['xpos'].setValue(x+400)
                 Roto['ypos'].setValue(y)
@@ -476,7 +457,7 @@ def corn3D():
         if Output == "Roto":
             nuke.delete(corner)
             nuke.delete(card)
-            nuke.delete(theNewCornerpinNode)
+            nuke.delete(corner_new)
 
    # here is a code for Reconcile only
     else:
@@ -500,16 +481,16 @@ def corn3D():
         card = nuke.selectedNodes()
         for card in card:
             if 'fstop' in card.knobs():
-                Cam = card
+                camera = card
             elif 'orientation' in card.knobs():
                 print "by Alexey Kuchinsky"
             else:
-                BG = card
+                background = card
 
         upper_left_track = nuke.nodes.Reconcile3D()
         upper_left_track.setInput(2,main_axis)
-        upper_left_track.setInput(1,Cam)
-        upper_left_track.setInput(0,BG)
+        upper_left_track.setInput(1,camera)
+        upper_left_track.setInput(0,background)
         upper_left_track['name'].setValue("rec")
         upper_left_track['xpos'].setValue(x)
         upper_left_track['ypos'].setValue(y)
