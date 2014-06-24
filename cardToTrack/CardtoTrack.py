@@ -108,93 +108,112 @@ def corn3D():
     rangeA=int(rangeA)
     rangeB=int(rangeB)
 
-
     #here is coming the main part where tracker and corner pin are created
-    if Axis == False:
-        n = nuke.selectedNodes("Card2")
-        for n in n:
+    if not Axis:
+        card = nuke.selectedNodes("Card2")
+        for card in card:
 
 
-            width = float(n.width())
-            heght = float(n.height())
-            aspect =  heght/width
+            width = float(card.width())
+            heght = float(card.height())
+            aspect = heght/width
 
-            x = n['xpos'].value()
-            y = n['ypos'].value()
-            unifscale = n['uniform_scale'].value()
-            scalingx = n['scaling'].value(0)
-            scalingy = n['scaling'].value(1)
-            trans = n['translate'].value()
-            rot = n['rotate'].value()
+            x = card['xpos'].value()
+            y = card['ypos'].value()
+            uniform_scale = card['uniform_scale'].value()
+            scaling_x = card['scaling'].value(0)
+            scaling_y = card['scaling'].value(1)
+            translate = card['translate'].value()
+            rotate = card['rotate'].value()
 
-            traA = n['translate'].isAnimated()
-            rotA = n['rotate'].isAnimated()
+            card_label = card['label'].value()
+            main_axis = nuke.nodes.Axis()
 
-            labelC = n['label'].value()
-            mainA = nuke.nodes.Axis()
+            main_axis['xform_order'].setValue(3)
 
-            #mainA['translate'].setValue(trans)
-            #mainA['rotate'].setValue(rot)
-            mainA['xform_order'].setValue(3)
-            if traA is True:
-                mainA['translate'].copyAnimations(n['translate'].animations())
+            if card['translate'].isAnimated():
+                main_axis['translate'].copyAnimations(
+                    card['translate'].animations()
+                )
             else:
-                mainA['translate'].setValue(trans)
+                main_axis['translate'].setValue(translate)
 
-            if rotA is True:
-                mainA['rotate'].copyAnimations(n['rotate'].animations())
+            if card['rotate'].isAnimated():
+                main_axis['rotate'].copyAnimations(
+                    card['rotate'].animations()
+                )
             else:
-                mainA['rotate'].setValue(rot)
+                main_axis['rotate'].setValue(rotate)
 
+            main_axis['name'].setValue("mainA")
+            main_axis['xpos'].setValue(x)
+            main_axis['ypos'].setValue(y)
 
+            upper_left = nuke.nodes.Axis()
+            upper_left['xform_order'].setValue(1)
+            upper_left['translate'].setValue(
+                [
+                    -0.5 * uniform_scale * scaling_x,
+                    aspect * 0.5 * uniform_scale * scaling_y,
+                    0
+                ]
+            )
+            upper_left.setInput(0, main_axis)
+            upper_left['name'].setValue('UpperLeft')
+            upper_left['xpos'].setValue(x)
+            upper_left['ypos'].setValue(y)
 
-            mainA['name'].setValue("mainA")
-            mainA['xpos'].setValue(x)
-            mainA['ypos'].setValue(y)
+            upper_right = nuke.nodes.Axis()
+            upper_right['xform_order'].setValue(1)
+            upper_right['translate'].setValue(
+                [
+                    0.5 * uniform_scale * scaling_x,
+                    aspect * 0.5 * uniform_scale * scaling_y,
+                    0
+                ]
+            )
+            upper_right.setInput(0, main_axis)
+            upper_right['name'].setValue('UpperRight')
+            upper_right['xpos'].setValue(x)
+            upper_right['ypos'].setValue(y)
 
-            LU = nuke.nodes.Axis()
-            LU['xform_order'].setValue(1)
-            LU['translate'].setValue([-0.5*unifscale*scalingx,aspect*0.5*unifscale*scalingy,0])
-            LU.setInput(0,mainA)
-            LU['name'].setValue('LU')
-            LU['xpos'].setValue(x)
-            LU['ypos'].setValue(y)
+            lower_left = nuke.nodes.Axis()
+            lower_left['translate'].setValue(
+                [
+                    -0.5 * uniform_scale * scaling_x,
+                    aspect * -0.5 * uniform_scale * scaling_y,
+                    0
+                ]
+            )
+            lower_left.setInput(0, main_axis)
+            lower_left['name'].setValue('LowerLeft')
+            lower_left['xpos'].setValue(x)
+            lower_left['ypos'].setValue(y)
 
-            RU = nuke.nodes.Axis()
-            RU['xform_order'].setValue(1)
+            lower_right = nuke.nodes.Axis()
+            lower_right['translate'].setValue(
+                [
+                    0.5 * uniform_scale * scaling_x,
+                    aspect * -0.5 * uniform_scale * scaling_y,
+                    0
+                ]
+            )
+            lower_right.setInput(0, main_axis)
+            lower_right['name'].setValue('LowerRight')
+            lower_right['xpos'].setValue(x)
+            lower_right['ypos'].setValue(y)
 
-            RU['translate'].setValue([0.5*unifscale*scalingx,aspect*0.5*unifscale*scalingy,0])
-            RU.setInput(0,mainA)
-            RU['name'].setValue('RU')
-            RU['xpos'].setValue(x)
-            RU['ypos'].setValue(y)
-
-            LL = nuke.nodes.Axis()
-            LL['translate'].setValue([-0.5*unifscale*scalingx,aspect*-0.5*unifscale*scalingy,0])
-            LL.setInput(0,mainA)
-            LL['name'].setValue('LL')
-            LL['xpos'].setValue(x)
-            LL['ypos'].setValue(y)
-
-
-            RL= nuke.nodes.Axis()
-            RL['translate'].setValue([0.5*unifscale*scalingx,aspect*-0.5*unifscale*scalingy,0])
-            RL.setInput(0,mainA)
-            RL['name'].setValue('RL')
-            RL['xpos'].setValue(x)
-            RL['ypos'].setValue(y)
-
-        n = nuke.selectedNodes()
-        for n in n:
-            if 'fstop' in n.knobs():
-                Cam = n
-            elif 'orientation' in n.knobs():
-                print "by Alexey Kuchinsky"
+        card = nuke.selectedNodes()
+        for card in card:
+            if 'fstop' in card.knobs():
+                Cam = card
+            elif 'orientation' in card.knobs():
+                print "by Alexey Kuchinsky"  # What the hell?
             else:
-                BG = n
+                BG = card
 
         LUP = nuke.nodes.Reconcile3D()
-        LUP.setInput(2,LU)
+        LUP.setInput(2,upper_left)
         LUP.setInput(1,Cam)
         LUP.setInput(0,BG)
         LUP['name'].setValue("P4")
@@ -202,7 +221,7 @@ def corn3D():
         LUP['ypos'].setValue(y)
 
         RUP = nuke.nodes.Reconcile3D()
-        RUP.setInput(2,RU)
+        RUP.setInput(2,upper_right)
         RUP.setInput(1,Cam)
         RUP.setInput(0,BG)
         RUP['name'].setValue("P3")
@@ -210,7 +229,7 @@ def corn3D():
         RUP['ypos'].setValue(y)
 
         LLP = nuke.nodes.Reconcile3D()
-        LLP.setInput(2,LL)
+        LLP.setInput(2,lower_left)
         LLP.setInput(1,Cam)
         LLP.setInput(0,BG)
         LLP['name'].setValue("P1")
@@ -218,7 +237,7 @@ def corn3D():
         LLP['ypos'].setValue(y)
 
         RLP = nuke.nodes.Reconcile3D()
-        RLP.setInput(2,RL)
+        RLP.setInput(2,lower_right)
         RLP.setInput(1,Cam)
         RLP.setInput(0,BG)
         RLP['name'].setValue("P2")
@@ -226,14 +245,14 @@ def corn3D():
         RLP['ypos'].setValue(y)
 
 
-        n = nuke.nodes.Tracker3()
-        n['xpos'].setValue(x+100)
-        n['ypos'].setValue(y)
-        n['label'].setValue(labelC)
-        n['enable1'].setValue(1)
-        n['enable2'].setValue(1)
-        n['enable3'].setValue(1)
-        n['enable4'].setValue(1)
+        card = nuke.nodes.Tracker3()
+        card['xpos'].setValue(x+100)
+        card['ypos'].setValue(y)
+        card['label'].setValue(card_label)
+        card['enable1'].setValue(1)
+        card['enable2'].setValue(1)
+        card['enable3'].setValue(1)
+        card['enable4'].setValue(1)
 
         P1 = nuke.toNode("P1")
         nuke.execute(P1,rangeA,rangeB)
@@ -251,14 +270,14 @@ def corn3D():
         nuke.execute(P4,rangeA,rangeB)
         P4p = P4['output'].value()
 
-        n['track1'].copyAnimations(P1['output'].animations())
-        n['track2'].copyAnimations(P2['output'].animations())
-        n['track3'].copyAnimations(P3['output'].animations())
-        n['track4'].copyAnimations(P4['output'].animations())
-        n['use_for1'].setValue(7)
-        n['use_for2'].setValue(7)
-        n['use_for3'].setValue(7)
-        n['use_for4'].setValue(7)
+        card['track1'].copyAnimations(P1['output'].animations())
+        card['track2'].copyAnimations(P2['output'].animations())
+        card['track3'].copyAnimations(P3['output'].animations())
+        card['track4'].copyAnimations(P4['output'].animations())
+        card['use_for1'].setValue(7)
+        card['use_for2'].setValue(7)
+        card['use_for3'].setValue(7)
+        card['use_for4'].setValue(7)
 
 
 
@@ -280,24 +299,24 @@ def corn3D():
         corner['ypos'].setValue(y)
         refFrame = int(refFrame)
         refFrame = str(refFrame)
-        corner["label"].setValue(labelC  + "ref frame: " + refFrame)
+        corner["label"].setValue(card_label  + "ref frame: " + refFrame)
 
 
 
 
 
         # cleanup
-        mainA = nuke.toNode("mainA")
-        LU = nuke.toNode("LU")
-        RU = nuke.toNode("RU")
-        LL = nuke.toNode("LL")
-        RL = nuke.toNode("RL")
+        main_axis = nuke.toNode("mainA")
+        upper_left = nuke.toNode("LU")
+        upper_right = nuke.toNode("RU")
+        lower_left = nuke.toNode("LL")
+        lower_right = nuke.toNode("RL")
 
-        nuke.delete(mainA)
-        nuke.delete(LU)
-        nuke.delete(RU)
-        nuke.delete(LL)
-        nuke.delete(RL)
+        nuke.delete(main_axis)
+        nuke.delete(upper_left)
+        nuke.delete(upper_right)
+        nuke.delete(lower_left)
+        nuke.delete(lower_right)
         nuke.delete(P1)
         nuke.delete(P2)
         nuke.delete(P3)
@@ -305,7 +324,7 @@ def corn3D():
         if Output == "Tracker":
             nuke.delete(corner)
         if Output == "CornerPin":
-            nuke.delete(n)
+            nuke.delete(card)
         if Output == "CornerPin(matrix)" or Output == "All" or Output == "Roto":
             print "by Alexey Kuchinsky"
             projectionMatrixTo = nuke.math.Matrix4()
@@ -384,7 +403,7 @@ def corn3D():
 
                 theNewCornerpinNode['xpos'].setValue(x+300)
                 theNewCornerpinNode['ypos'].setValue(y)
-                theNewCornerpinNode['label'].setValue(labelC +"matrix")
+                theNewCornerpinNode['label'].setValue(card_label +"matrix")
 
                 frame = frame + 1
 
@@ -392,7 +411,7 @@ def corn3D():
 
         if Output == "CornerPin(matrix)":
             nuke.delete(corner)
-            nuke.delete(n)
+            nuke.delete(card)
 
         if Output == "Roto" or Output == "All":
             def cornerToPaint():
@@ -406,7 +425,7 @@ def corn3D():
                 Roto = nuke.nodes.Roto()
                 Roto['xpos'].setValue(x+400)
                 Roto['ypos'].setValue(y)
-                Roto['label'].setValue(labelC)
+                Roto['label'].setValue(card_label)
                 Knobs = Roto['curves']
                 root=Knobs.rootLayer
                 transform = root.getTransform()
@@ -468,59 +487,59 @@ def corn3D():
 
         if Output == "Roto":
             nuke.delete(corner)
-            nuke.delete(n)
+            nuke.delete(card)
             nuke.delete(theNewCornerpinNode)
 
    # here is a code for Reconcile only
     else:
-        n = nuke.selectedNodes("Card2")
-        for n in n:
-            x = n['xpos'].value()
-            y = n['ypos'].value()
-            trans = n['translate'].value()
-            rot = n['rotate'].value()
-            scalex = n['scaling'].value(0)
-            scaley = n['scaling'].value(1)
-            labelC = n['label'].value()
-            mainA = nuke.nodes.Axis()
-            mainA['xform_order'].setValue(3)
-            mainA['translate'].setValue(trans)
-            mainA['rotate'].setValue(rot)
-            mainA['name'].setValue("mainA")
-            mainA['xpos'].setValue(x)
-            mainA['ypos'].setValue(y)
+        card = nuke.selectedNodes("Card2")
+        for card in card:
+            x = card['xpos'].value()
+            y = card['ypos'].value()
+            translate = card['translate'].value()
+            rotate = card['rotate'].value()
+            scalex = card['scaling'].value(0)
+            scaley = card['scaling'].value(1)
+            card_label = card['label'].value()
+            main_axis = nuke.nodes.Axis()
+            main_axis['xform_order'].setValue(3)
+            main_axis['translate'].setValue(translate)
+            main_axis['rotate'].setValue(rotate)
+            main_axis['name'].setValue("mainA")
+            main_axis['xpos'].setValue(x)
+            main_axis['ypos'].setValue(y)
 
-        n = nuke.selectedNodes()
-        for n in n:
-            if 'fstop' in n.knobs():
-                Cam = n
-            elif 'orientation' in n.knobs():
+        card = nuke.selectedNodes()
+        for card in card:
+            if 'fstop' in card.knobs():
+                Cam = card
+            elif 'orientation' in card.knobs():
                 print "by Alexey Kuchinsky"
             else:
-                BG = n
+                BG = card
 
         LUP = nuke.nodes.Reconcile3D()
-        LUP.setInput(2,mainA)
+        LUP.setInput(2,main_axis)
         LUP.setInput(1,Cam)
         LUP.setInput(0,BG)
         LUP['name'].setValue("rec")
         LUP['xpos'].setValue(x)
         LUP['ypos'].setValue(y)
 
-        n = nuke.nodes.Tracker3()
-        n['enable1'].setValue(1)
+        card = nuke.nodes.Tracker3()
+        card['enable1'].setValue(1)
 
         P1 = nuke.toNode("rec")
         nuke.execute(LUP,rangeA,rangeB)
         P1p = P1['output'].value()
 
-        n['track1'].copyAnimations(LUP['output'].animations())
-        n['xpos'].setValue(x+100)
-        n['ypos'].setValue(y)
-        n['label'].setValue(labelC)
+        card['track1'].copyAnimations(LUP['output'].animations())
+        card['xpos'].setValue(x+100)
+        card['ypos'].setValue(y)
+        card['label'].setValue(card_label)
 
         # cleanup
-        mainA = nuke.toNode("mainA")
+        main_axis = nuke.toNode("mainA")
         rec = nuke.toNode("rec")
-        nuke.delete(mainA)
+        nuke.delete(main_axis)
         nuke.delete(rec)
