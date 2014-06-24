@@ -20,6 +20,7 @@ def corn3D():
         panel.addEnumerationPulldown("Output:", "Tracker CornerPin CornerPin(matrix) All ")
         panel.addSingleLineInput("Ref frame:", frame)
         panel.addBooleanCheckBox('Translate Only', False)
+        panel.addSingleLineInput("Range:", basicRange)
         panel.show()
     
         basicRange = panel.value("Range:")
@@ -115,7 +116,7 @@ def corn3D():
                 if 'fstop' in n.knobs():
                     Cam = n
                 elif 'orientation' in n.knobs():
-                    print "."
+                    print "by Alexey Kuchinsky"
                 else:
                     BG = n 
             
@@ -229,7 +230,7 @@ def corn3D():
             if Output == "CornerPin":
                 nuke.delete(n)
             if Output == "CornerPin(matrix)" or Output == "All":
-                print "fdsfdsfsdf"
+                print "by Alexey Kuchinsky"
                 projectionMatrixTo = nuke.math.Matrix4()
                 projectionMatrixFrom = nuke.math.Matrix4()
 
@@ -335,7 +336,7 @@ def corn3D():
                 if 'fstop' in n.knobs():
                     Cam = n
                 elif 'orientation' in n.knobs():
-                    print "."
+                    print "by Alexey Kuchinsky"
                 else:
                     BG = n 
             
@@ -386,7 +387,7 @@ def corn3D():
         last = str(last)
         basicRange = first+"-"+last
         panel.addSingleLineInput("Range:", basicRange)
-        panel.addEnumerationPulldown("Output:", "Tracker CornerPin CornerPin(matrix) All ")
+        panel.addEnumerationPulldown("Output:", "Tracker CornerPin CornerPin(matrix) Roto All ")
         panel.addSingleLineInput("Ref frame:", frame)
         panel.addBooleanCheckBox('Translate Only', False)
         panel.show()
@@ -404,8 +405,9 @@ def corn3D():
         rangeB=int(rangeB)
         rangeA=int(rangeA)
         rangeB=int(rangeB)
+
         
-        #here coming the main part where tracker and corner pin are created 
+        #here is coming the main part where tracker and corner pin are created 
         if Axis == False:
             n = nuke.selectedNodes("Card2")
             for n in n:
@@ -488,7 +490,7 @@ def corn3D():
                 if 'fstop' in n.knobs():
                     Cam = n
                 elif 'orientation' in n.knobs():
-                    print "."
+                    print "by Alexey Kuchinsky"
                 else:
                     BG = n 
             
@@ -579,6 +581,9 @@ def corn3D():
             refFrame = int(refFrame)
             refFrame = str(refFrame)
             corner["label"].setValue("ref frame: " + refFrame)
+            
+            
+
         
            
             # cleanup    
@@ -601,8 +606,8 @@ def corn3D():
                 nuke.delete(corner)
             if Output == "CornerPin":
                 nuke.delete(n)
-            if Output == "CornerPin(matrix)" or Output == "All":
-                print "fdsfdsfsdf"
+            if Output == "CornerPin(matrix)" or Output == "All" or Output == "Roto":
+                print "by Alexey Kuchinsky"
                 projectionMatrixTo = nuke.math.Matrix4()
                 projectionMatrixFrom = nuke.math.Matrix4()
 
@@ -682,9 +687,90 @@ def corn3D():
                     theNewCornerpinNode['label'].setValue("matrix")
                     
                     frame = frame + 1
+                    
+                    
+
             if Output == "CornerPin(matrix)":
                 nuke.delete(corner)
                 nuke.delete(n)
+                
+            if Output == "Roto" or Output == "All":
+                def cornerToPaint():
+                    first = nuke.Root().knob('first_frame').getValue()
+                    first = int(first)
+                    last = nuke.Root().knob('last_frame').getValue()
+                    last = int(last)+1
+                    frame = first
+                    
+                    cor = theNewCornerpinNode
+                    Roto = nuke.nodes.Roto()
+                    Roto['xpos'].setValue(x+400)
+                    Roto['ypos'].setValue(y)
+                    Roto['label'].setValue(labelC)
+                    Knobs = Roto['curves']
+                    root=Knobs.rootLayer
+                    transform = root.getTransform()
+                       
+                    while frame<last:
+
+                        cm0 = cor['transform_matrix'].getValueAt(frame,0)
+                        cm1 = cor['transform_matrix'].getValueAt(frame,1)
+                        cm2 = cor['transform_matrix'].getValueAt(frame,2)
+                        cm3 = cor['transform_matrix'].getValueAt(frame,3)
+                        cm4 = cor['transform_matrix'].getValueAt(frame,4)
+                        cm5 = cor['transform_matrix'].getValueAt(frame,5)
+                        cm6 = cor['transform_matrix'].getValueAt(frame,6)
+                        cm7 = cor['transform_matrix'].getValueAt(frame,7)
+                        cm8 = cor['transform_matrix'].getValueAt(frame,8)
+                        cm9 = cor['transform_matrix'].getValueAt(frame,9)
+                        cm10 = cor['transform_matrix'].getValueAt(frame,10)
+                        cm11 = cor['transform_matrix'].getValueAt(frame,11)
+                        cm12 = cor['transform_matrix'].getValueAt(frame,12)
+                        cm13 = cor['transform_matrix'].getValueAt(frame,13)
+                        cm14 = cor['transform_matrix'].getValueAt(frame,14)
+                        cm15 = cor['transform_matrix'].getValueAt(frame,15)
+                        
+                        matr = transform.getExtraMatrixAnimCurve(0,0) 
+                        matr.addKey(frame,cm0)  
+                        matr = transform.getExtraMatrixAnimCurve(0,1) 
+                        matr.addKey(frame,cm1)  
+                        matr = transform.getExtraMatrixAnimCurve(0,2) 
+                        matr.addKey(frame,cm2)  
+                        matr = transform.getExtraMatrixAnimCurve(0,3) 
+                        matr.addKey(frame,cm3)  
+                        matr = transform.getExtraMatrixAnimCurve(0,4) 
+                        matr.addKey(frame,cm4)  
+                        matr = transform.getExtraMatrixAnimCurve(0,5) 
+                        matr.addKey(frame,cm5)  
+                        matr = transform.getExtraMatrixAnimCurve(0,6) 
+                        matr.addKey(frame,cm6)  
+                        matr = transform.getExtraMatrixAnimCurve(0,7) 
+                        matr.addKey(frame,cm7)  
+                        matr = transform.getExtraMatrixAnimCurve(0,8) 
+                        matr.addKey(frame,cm8)  
+                        matr = transform.getExtraMatrixAnimCurve(0,9) 
+                        matr.addKey(frame,cm9)  
+                        matr = transform.getExtraMatrixAnimCurve(0,10) 
+                        matr.addKey(frame,cm10)  
+                        matr = transform.getExtraMatrixAnimCurve(0,11) 
+                        matr.addKey(frame,cm11)  
+                        matr = transform.getExtraMatrixAnimCurve(0,12) 
+                        matr.addKey(frame,cm12)  
+                        matr = transform.getExtraMatrixAnimCurve(0,13) 
+                        matr.addKey(frame,cm13)  
+                        matr = transform.getExtraMatrixAnimCurve(0,14) 
+                        matr.addKey(frame,cm14)  
+                        matr = transform.getExtraMatrixAnimCurve(0,15) 
+                        matr.addKey(frame,cm15)                 
+                        frame = frame+1
+                cornerToPaint()
+
+                
+            if Output == "Roto":
+                nuke.delete(corner)
+                nuke.delete(n) 
+                nuke.delete(theNewCornerpinNode) 
+                
        # here is a code for Reconcile only
         else:
             n = nuke.selectedNodes("Card2")
@@ -708,7 +794,7 @@ def corn3D():
                 if 'fstop' in n.knobs():
                     Cam = n
                 elif 'orientation' in n.knobs():
-                    print "."
+                    print "by Alexey Kuchinsky"
                 else:
                     BG = n 
             
