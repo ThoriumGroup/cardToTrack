@@ -173,125 +173,74 @@ def corn3D():
         main_axis['xpos'].setValue(x)
         main_axis['ypos'].setValue(y)
 
-        upper_left = nuke.nodes.Axis()
-        upper_left['xform_order'].setValue(1)
-        upper_left['translate'].setValue(
-            [
-                -0.5 * uniform_scale * scaling_x,
-                aspect * 0.5 * uniform_scale * scaling_y,
-                0
-            ]
-        )
-        upper_left.setInput(0, main_axis)
-        upper_left['name'].setValue('UpperLeft')
-        upper_left['xpos'].setValue(x)
-        upper_left['ypos'].setValue(y)
+        def create_axis(offset_x, offset_y, name, xform=True):
+            """Creates an axis matching a corner of a card"""
+            axis = nuke.nodes.Axis()
+            if xform:
+                axis['xform_order'].setValue(1)
 
-        upper_right = nuke.nodes.Axis()
-        upper_right['xform_order'].setValue(1)
-        upper_right['translate'].setValue(
-            [
-                0.5 * uniform_scale * scaling_x,
-                aspect * 0.5 * uniform_scale * scaling_y,
-                0
-            ]
-        )
-        upper_right.setInput(0, main_axis)
-        upper_right['name'].setValue('UpperRight')
-        upper_right['xpos'].setValue(x)
-        upper_right['ypos'].setValue(y)
+            axis['translate'].setValue(
+                [
+                    offset_x * uniform_scale * scaling_x,
+                    offset_y * aspect * uniform_scale * scaling_y,
+                    0
+                ]
+            )
+            axis.setInput(0, main_axis)
+            axis['name'].setValue(name)
+            axis['xpos'].setValue(x)
+            axis['ypos'].setValue(y)
 
-        lower_left = nuke.nodes.Axis()
-        lower_left['translate'].setValue(
-            [
-                -0.5 * uniform_scale * scaling_x,
-                aspect * -0.5 * uniform_scale * scaling_y,
-                0
-            ]
-        )
-        lower_left.setInput(0, main_axis)
-        lower_left['name'].setValue('LowerLeft')
-        lower_left['xpos'].setValue(x)
-        lower_left['ypos'].setValue(y)
+            return axis
 
-        lower_right = nuke.nodes.Axis()
-        lower_right['translate'].setValue(
-            [
-                0.5 * uniform_scale * scaling_x,
-                aspect * -0.5 * uniform_scale * scaling_y,
-                0
-            ]
-        )
-        lower_right.setInput(0, main_axis)
-        lower_right['name'].setValue('LowerRight')
-        lower_right['xpos'].setValue(x)
-        lower_right['ypos'].setValue(y)
+        upper_left = create_axis(-0.5, 0.5, 'UpperLeft')
+        upper_right = create_axis(0.5, 0.5, 'UpperRight')
+        lower_left = create_axis(-0.5, -0.5, 'LowerLeft', False)
+        lower_right = create_axis(0.5, -0.5, 'LowerRight', False)
 
-        upper_left_track = nuke.nodes.Reconcile3D()
-        upper_left_track.setInput(2, upper_left)
-        upper_left_track.setInput(1, camera)
-        upper_left_track.setInput(0, background)
-        upper_left_track['name'].setValue("UpperLeftTrack")
-        upper_left_track['xpos'].setValue(x)
-        upper_left_track['ypos'].setValue(y)
+        def create_track(axis, name):
+            """Creates a reconcile3D node attached to the axis"""
+            track = nuke.nodes.Reconcile3D()
+            track.setInput(2, axis)
+            track.setInput(1, camera)
+            track.setInput(0, background)
+            track['name'].setValue(name)
+            track['xpos'].setValue(x)
+            track['ypos'].setValue(y)
 
-        upper_right_track = nuke.nodes.Reconcile3D()
-        upper_right_track.setInput(2, upper_right)
-        upper_right_track.setInput(1, camera)
-        upper_right_track.setInput(0, background)
-        upper_right_track['name'].setValue("UpperRightTrack")
-        upper_right_track['xpos'].setValue(x)
-        upper_right_track['ypos'].setValue(y)
+            return track
 
-        lower_left_track = nuke.nodes.Reconcile3D()
-        lower_left_track.setInput(2, lower_left)
-        lower_left_track.setInput(1, camera)
-        lower_left_track.setInput(0, background)
-        lower_left_track['name'].setValue("LowerLeftTrack")
-        lower_left_track['xpos'].setValue(x)
-        lower_left_track['ypos'].setValue(y)
+        upper_left_track = create_track(upper_left, "UpperLeftTrack")
+        upper_right_track = create_track(upper_right, "UpperRightTrack")
+        lower_left_track = create_track(lower_left, "LowerLeftTrack")
+        lower_right_track = create_track(lower_right, "LowerRightTrack")
 
-        lower_right_track = nuke.nodes.Reconcile3D()
-        lower_right_track.setInput(2, lower_right)
-        lower_right_track.setInput(1, camera)
-        lower_right_track.setInput(0, background)
-        lower_right_track['name'].setValue("LowerRightTrack")
-        lower_right_track['xpos'].setValue(x)
-        lower_right_track['ypos'].setValue(y)
+        tracks = [
+            lower_left_track, lower_right_track,
+            upper_right_track, upper_left_track,
+        ]
 
         card = nuke.nodes.Tracker3()
         card['xpos'].setValue(x + 100)
         card['ypos'].setValue(y)
         card['label'].setValue(card_label)
-        card['enable1'].setValue(1)
-        card['enable2'].setValue(1)
-        card['enable3'].setValue(1)
-        card['enable4'].setValue(1)
+        for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
+            card[knob].setValue(1)
 
-        nuke.execute(lower_left_track, rangeA, rangeB)
-        nuke.execute(lower_right_track, rangeA, rangeB)
-        nuke.execute(upper_right_track, rangeA, rangeB)
-        nuke.execute(upper_left_track, rangeA, rangeB)
+        for node in tracks:
+            nuke.execute(node, rangeA, rangeB)
 
-        card['track1'].copyAnimations(lower_left_track['output'].animations())
-        card['track2'].copyAnimations(lower_right_track['output'].animations())
-        card['track3'].copyAnimations(upper_right_track['output'].animations())
-        card['track4'].copyAnimations(upper_left_track['output'].animations())
-        card['use_for1'].setValue(7)
-        card['use_for2'].setValue(7)
-        card['use_for3'].setValue(7)
-        card['use_for4'].setValue(7)
+        for i, knob in enumerate(['track1', 'track2', 'track3', 'track4']):
+            card[knob].copyAnimations(tracks[i]['output'].animations())
+        for knob in ['use_for1', 'use_for2', 'use_for3', 'use_for4']:
+            card[knob].setValue(7)
 
         # corner pin
         corner = nuke.nodes.CornerPin2D()
-        corner['to1'].copyAnimations(lower_left_track['output'].animations())
-        corner['to2'].copyAnimations(lower_right_track['output'].animations())
-        corner['to3'].copyAnimations(upper_right_track['output'].animations())
-        corner['to4'].copyAnimations(upper_left_track['output'].animations())
-        corner['from1'].setValue(lower_left_track['output'].getValueAt(refFrame))
-        corner['from2'].setValue(lower_right_track['output'].getValueAt(refFrame))
-        corner['from3'].setValue(upper_right_track['output'].getValueAt(refFrame))
-        corner['from4'].setValue(upper_left_track['output'].getValueAt(refFrame))
+        for i, knob in enumerate(['to1', 'to2', 'to3', 'to4']):
+            corner[knob].copyAnimations(tracks[i]['output'].animations())
+        for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
+            corner[knob].setValue(tracks[i]['output'].getValueAt(refFrame))
         corner['xpos'].setValue(x + 200)
         corner['ypos'].setValue(y)
         corner["label"].setValue(
@@ -302,21 +251,18 @@ def corn3D():
         )
 
         # Cleanup our created nodes
-        nuke.delete(main_axis)
-        nuke.delete(upper_left)
-        nuke.delete(upper_right)
-        nuke.delete(lower_left)
-        nuke.delete(lower_right)
-        nuke.delete(lower_left_track)
-        nuke.delete(lower_right_track)
-        nuke.delete(upper_right_track)
-        nuke.delete(upper_left_track)
+        for node in [
+            main_axis, upper_left, upper_right, lower_left, lower_right,
+            upper_left_track, upper_right_track, lower_left_track,
+            lower_right_track
+        ]:
+            nuke.delete(node)
 
-        if Output == "Tracker":
+        if Output == 'Tracker':
             nuke.delete(corner)
-        elif Output == "CornerPin":
+        elif Output == 'CornerPin':
             nuke.delete(card)
-        elif Output in ["CornerPin(matrix)", "All", "Roto"]:
+        elif Output in ['CornerPin(matrix)', 'All', 'Roto']:
 
             to_matrix = nuke.math.Matrix4()
             from_matrix = nuke.math.Matrix4()
@@ -327,6 +273,7 @@ def corn3D():
             first = rangeA
             last = rangeB
             frame = first
+
             while frame < last + 1:
 
                 # We'll grab all of our current frame's corners using
@@ -375,89 +322,41 @@ def corn3D():
                 )
 
                 frame += 1
+            if Output == "CornerPin(matrix)":
+                nuke.delete(corner)
+                nuke.delete(card)
+            else:
+                def cornerToPaint():
+                    first = nuke.Root().knob('first_frame').getValue()
+                    first = int(first)
+                    last = nuke.Root().knob('last_frame').getValue()
+                    last = int(last)+1
+                    frame = first
 
+                    roto = nuke.nodes.Roto()
+                    roto['xpos'].setValue(x+400)
+                    roto['ypos'].setValue(y)
+                    roto['label'].setValue(card_label)
+                    transform = roto['curves'].rootLayer.getTransform()
 
+                    while frame < last + 1:
 
-        if Output == "CornerPin(matrix)":
-            nuke.delete(corner)
-            nuke.delete(card)
+                        corner_matrix = [
+                            corner_new['transform_matrix'].getValueAt(frame, i) for i in xrange(16)
+                        ]
 
-        if Output == "Roto" or Output == "All":
-            def cornerToPaint():
-                first = nuke.Root().knob('first_frame').getValue()
-                first = int(first)
-                last = nuke.Root().knob('last_frame').getValue()
-                last = int(last)+1
-                frame = first
+                        for i, value in enumerate(corner_matrix):
+                            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
+                            matrix_curve.addKey(frame, value)
 
-                cor = corner_new
-                Roto = nuke.nodes.Roto()
-                Roto['xpos'].setValue(x+400)
-                Roto['ypos'].setValue(y)
-                Roto['label'].setValue(card_label)
-                Knobs = Roto['curves']
-                root=Knobs.rootLayer
-                transform = root.getTransform()
+                        frame += 1
 
-                while frame<last:
+                cornerToPaint()
 
-                    cm0 = cor['transform_matrix'].getValueAt(frame,0)
-                    cm1 = cor['transform_matrix'].getValueAt(frame,1)
-                    cm2 = cor['transform_matrix'].getValueAt(frame,2)
-                    cm3 = cor['transform_matrix'].getValueAt(frame,3)
-                    cm4 = cor['transform_matrix'].getValueAt(frame,4)
-                    cm5 = cor['transform_matrix'].getValueAt(frame,5)
-                    cm6 = cor['transform_matrix'].getValueAt(frame,6)
-                    cm7 = cor['transform_matrix'].getValueAt(frame,7)
-                    cm8 = cor['transform_matrix'].getValueAt(frame,8)
-                    cm9 = cor['transform_matrix'].getValueAt(frame,9)
-                    cm10 = cor['transform_matrix'].getValueAt(frame,10)
-                    cm11 = cor['transform_matrix'].getValueAt(frame,11)
-                    cm12 = cor['transform_matrix'].getValueAt(frame,12)
-                    cm13 = cor['transform_matrix'].getValueAt(frame,13)
-                    cm14 = cor['transform_matrix'].getValueAt(frame,14)
-                    cm15 = cor['transform_matrix'].getValueAt(frame,15)
-
-                    matr = transform.getExtraMatrixAnimCurve(0,0)
-                    matr.addKey(frame,cm0)
-                    matr = transform.getExtraMatrixAnimCurve(0,1)
-                    matr.addKey(frame,cm1)
-                    matr = transform.getExtraMatrixAnimCurve(0,2)
-                    matr.addKey(frame,cm2)
-                    matr = transform.getExtraMatrixAnimCurve(0,3)
-                    matr.addKey(frame,cm3)
-                    matr = transform.getExtraMatrixAnimCurve(0,4)
-                    matr.addKey(frame,cm4)
-                    matr = transform.getExtraMatrixAnimCurve(0,5)
-                    matr.addKey(frame,cm5)
-                    matr = transform.getExtraMatrixAnimCurve(0,6)
-                    matr.addKey(frame,cm6)
-                    matr = transform.getExtraMatrixAnimCurve(0,7)
-                    matr.addKey(frame,cm7)
-                    matr = transform.getExtraMatrixAnimCurve(0,8)
-                    matr.addKey(frame,cm8)
-                    matr = transform.getExtraMatrixAnimCurve(0,9)
-                    matr.addKey(frame,cm9)
-                    matr = transform.getExtraMatrixAnimCurve(0,10)
-                    matr.addKey(frame,cm10)
-                    matr = transform.getExtraMatrixAnimCurve(0,11)
-                    matr.addKey(frame,cm11)
-                    matr = transform.getExtraMatrixAnimCurve(0,12)
-                    matr.addKey(frame,cm12)
-                    matr = transform.getExtraMatrixAnimCurve(0,13)
-                    matr.addKey(frame,cm13)
-                    matr = transform.getExtraMatrixAnimCurve(0,14)
-                    matr.addKey(frame,cm14)
-                    matr = transform.getExtraMatrixAnimCurve(0,15)
-                    matr.addKey(frame,cm15)
-                    frame = frame+1
-            cornerToPaint()
-
-
-        if Output == "Roto":
-            nuke.delete(corner)
-            nuke.delete(card)
-            nuke.delete(corner_new)
+                if Output == "Roto":
+                    nuke.delete(corner)
+                    nuke.delete(card)
+                    nuke.delete(corner_new)
 
    # here is a code for Reconcile only
     else:
