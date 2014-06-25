@@ -342,7 +342,7 @@ def card_to_track(card, camera, background):
             track['ypos'].setValue(card_pos_y + y)
 
         if settings['output'] in ['All', 'Tracker']:
-            tracker = _create_tracker(
+            _create_tracker(
                 (card_pos_x, card_pos_y), tracks,
                 (settings['first'], settings['last']),
                 card_label
