@@ -72,8 +72,104 @@ def _card_to_track_panel():
     return panel_results
 
 
-def card_to_track():
+def _create_axis(card, offset, parent_axis, name, xform=True):
+    """Creates an axis along the plane of a card.
 
+    Args:
+        card : (<nuke.nodes.Card>)
+            The card whose plane we will create an axis on.
+
+        offset : (float, float)
+            Offset in (x, y) from center of card.
+
+        parent_axis : (<nuke.nodes.Axis>)
+            The axis that this axis should inherit transforms from.
+
+        name : (str)
+            What to name the resulting node.
+
+        xform=True : (bool)
+            If True, set the transform order.
+
+    Returns:
+        (<nuke.nodes.Axis>)
+            An axis, attached to the parent_axis, that represents a point on
+            the card plane as defined by the offset.
+
+    Raises:
+        N/A
+
+    """
+    axis = nuke.nodes.Axis()
+    if xform:
+        axis['xform_order'].setValue(1)
+
+    card_width = float(card.width())
+    card_height = float(card.height())
+    card_aspect = card_height/card_width
+    card_uniform_scale = card['uniform_scale'].value()
+    card_scaling_x = card['scaling'].value(0)
+    card_scaling_y = card['scaling'].value(1)
+
+    axis['translate'].setValue(
+        [
+            offset[0] * card_uniform_scale * card_scaling_x,
+            offset[1] * card_aspect * card_uniform_scale * card_scaling_y,
+            0
+        ]
+    )
+    axis.setInput(0, parent_axis)
+    axis['name'].setValue(name)
+
+    return axis
+
+
+def _create_track(axis, camera, background, name):
+    """Creates a reconcile3D node attached to the axis
+
+    Args:
+        axis : (<nuke.nodes.Axis>)
+            The axis node to create a 2d tracking point from.
+
+        camera : (<nuke.nodes.Camera2>)
+            The camera node to track through.
+
+        background : (<nuke.node>)
+            Any image node with a resolution.
+
+        name : (str)
+            What the name the resulting Reconcile3D node.
+
+    Returns:
+        (<nuke.nodes.Reconcile3D>)
+            The incoming axis as a 2d track.
+
+    Raises:
+        N/A
+
+    """
+    track = nuke.nodes.Reconcile3D()
+    track.setInput(2, axis)
+    track.setInput(1, camera)
+    track.setInput(0, background)
+    track['name'].setValue(name)
+
+    return track
+
+
+def card_to_track_wrapper():
+    """A wrapper for card_to_track that handles node selection
+
+    Args:
+        N/A
+
+    Returns:
+        None
+
+    Raises:
+        N/A
+
+    """
     # Grab our selected nodes, there should only be three and we'll iterate
     # over them to determine which is which.
     nodes = nuke.selectedNodes()
@@ -111,6 +207,11 @@ def card_to_track():
             )
         )
         return
+    else:
+        card_to_track(card, camera, background)
+
+
+def card_to_track(card, camera, background):
 
     # Open a panel to grab our required settings and return a dictionary.
     settings = _card_to_track_panel()
@@ -123,12 +224,6 @@ def card_to_track():
     # Card values
     card_pos_x = card['xpos'].value()
     card_pos_y = card['ypos'].value()
-    card_width = float(card.width())
-    card_height = float(card.height())
-    card_aspect = card_height/card_width
-    card_uniform_scale = card['uniform_scale'].value()
-    card_scaling_x = card['scaling'].value(0)
-    card_scaling_y = card['scaling'].value(1)
     card_translate = card['translate'].value()
     card_rotate = card['rotate'].value()
     card_label = card['label'].value()
@@ -141,36 +236,6 @@ def card_to_track():
     main_axis['name'].setValue("MainAxis")
     main_axis['xpos'].setValue(card_pos_x)
     main_axis['ypos'].setValue(card_pos_y + 40)
-
-    def create_axis(offset_x, offset_y, parent_axis, name, xform=True):
-        """Creates an axis matching a corner of a card"""
-        axis = nuke.nodes.Axis()
-        if xform:
-            axis['xform_order'].setValue(1)
-
-        axis['translate'].setValue(
-            [
-                offset_x * card_uniform_scale * card_scaling_x,
-                offset_y * card_aspect * card_uniform_scale * card_scaling_y,
-                0
-            ]
-        )
-        axis.setInput(0, parent_axis)
-        axis['name'].setValue(name)
-
-        return axis
-
-    def create_track(axis, name):
-        """Creates a reconcile3D node attached to the axis"""
-        track = nuke.nodes.Reconcile3D()
-        track.setInput(2, axis)
-        track.setInput(1, camera)
-        track.setInput(0, background)
-        track['name'].setValue(name)
-        track['xpos'].setValue(card_pos_x)
-        track['ypos'].setValue(card_pos_y)
-
-        return track
 
     # Full card_to_track:
     if not settings['axis']:
@@ -190,10 +255,18 @@ def card_to_track():
         # TODO: What about animated scaling?
 
         # Create our axes at the corners of the card.
-        upper_left = create_axis(-0.5, 0.5, main_axis, 'UpperLeft')
-        upper_right = create_axis(0.5, 0.5, main_axis, 'UpperRight')
-        lower_left = create_axis(-0.5, -0.5, main_axis, 'LowerLeft', False)
-        lower_right = create_axis(0.5, -0.5, main_axis, 'LowerRight', False)
+        upper_left = _create_axis(
+            card, (-0.5, 0.5), main_axis, 'UpperLeft'
+        )
+        upper_right = _create_axis(
+            card, (0.5, 0.5), main_axis, 'UpperRight'
+        )
+        lower_left = _create_axis(
+            card, (-0.5, -0.5), main_axis, 'LowerLeft', False
+        )
+        lower_right = _create_axis(
+            card, (0.5, -0.5), main_axis, 'LowerRight', False
+        )
 
         axes = [upper_left, upper_right, lower_left, lower_right]
 
@@ -205,10 +278,18 @@ def card_to_track():
             axis['ypos'].setValue(card_pos_y + y)
 
         # Crate our reconcile3D nodes pointing to those axes
-        upper_left_track = create_track(upper_left, "UpperLeftTrack")
-        upper_right_track = create_track(upper_right, "UpperRightTrack")
-        lower_left_track = create_track(lower_left, "LowerLeftTrack")
-        lower_right_track = create_track(lower_right, "LowerRightTrack")
+        upper_left_track = _create_track(
+            upper_left, camera, background, "UpperLeftTrack"
+        )
+        upper_right_track = _create_track(
+            upper_right, camera, background, "UpperRightTrack"
+        )
+        lower_left_track = _create_track(
+            lower_left, camera, background, "LowerLeftTrack"
+        )
+        lower_right_track = _create_track(
+            lower_right, camera, background, "LowerRightTrack"
+        )
 
         tracks = [
             lower_left_track, lower_right_track,
@@ -345,7 +426,7 @@ def card_to_track():
     # Here we'll only do translation
     else:
 
-        main_track = create_track(main_axis, "MainTrack")
+        main_track = _create_track(main_axis, "MainTrack")
 
         tracker = nuke.nodes.Tracker3()
         tracker['enable1'].setValue(1)
