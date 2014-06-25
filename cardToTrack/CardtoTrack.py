@@ -107,71 +107,86 @@ def card_to_track():
         )
         return
 
+    # Open a panel to grab our required settings and return a dictionary.
     settings = _card_to_track_panel()
     if not settings:  # If panel canceled, we'll cancel.
         return
 
+    # Turn our frame range into a nuke.FrameRange object we can iterate over.
     frange = nuke.FrameRange(settings['frange'])
 
-    #here is coming the main part where tracker and corner pin are created
+    # Card values
+    card_pos_x = card['xpos'].value()
+    card_pos_y = card['ypos'].value()
+    card_width = float(card.width())
+    card_height = float(card.height())
+    card_aspect = card_height/card_width
+    card_uniform_scale = card['uniform_scale'].value()
+    card_scaling_x = card['scaling'].value(0)
+    card_scaling_y = card['scaling'].value(1)
+    card_translate = card['translate'].value()
+    card_rotate = card['rotate'].value()
+    card_label = card['label'].value()
+
+    # Create our Main Axis node
+    main_axis = nuke.nodes.Axis()
+    main_axis['xform_order'].setValue(3)
+    main_axis['translate'].setValue(card_translate)
+    main_axis['rotate'].setValue(card_rotate)
+    main_axis['name'].setValue("MainAxis")
+    main_axis['xpos'].setValue(card_pos_x)
+    main_axis['ypos'].setValue(card_pos_y)
+
+    def create_axis(offset_x, offset_y, name, xform=True):
+        """Creates an axis matching a corner of a card"""
+        axis = nuke.nodes.Axis()
+        if xform:
+            axis['xform_order'].setValue(1)
+
+        axis['translate'].setValue(
+            [
+                offset_x * card_uniform_scale * card_scaling_x,
+                offset_y * card_aspect * card_uniform_scale * card_scaling_y,
+                0
+            ]
+        )
+        axis.setInput(0, main_axis)
+        axis['name'].setValue(name)
+        axis['xpos'].setValue(card_pos_x)
+        axis['ypos'].setValue(card_pos_y)
+
+        return axis
+
+    def create_track(axis, name):
+        """Creates a reconcile3D node attached to the axis"""
+        track = nuke.nodes.Reconcile3D()
+        track.setInput(2, axis)
+        track.setInput(1, camera)
+        track.setInput(0, background)
+        track['name'].setValue(name)
+        track['xpos'].setValue(card_pos_x)
+        track['ypos'].setValue(card_pos_y)
+
+        return track
+
+    # Full card_to_track:
     if not settings['axis']:
 
-        # Create our axis for corners
-        width = float(card.width())
-        height = float(card.height())
-        aspect = height/width
-
-        x = card['xpos'].value()
-        y = card['ypos'].value()
-        uniform_scale = card['uniform_scale'].value()
-        scaling_x = card['scaling'].value(0)
-        scaling_y = card['scaling'].value(1)
-        translate = card['translate'].value()
-        rotate = card['rotate'].value()
-
-        card_label = card['label'].value()
-        main_axis = nuke.nodes.Axis()
-
-        main_axis['xform_order'].setValue(3)
-
+        # Check if our card translates in space
         if card['translate'].isAnimated():
             main_axis['translate'].copyAnimations(
                 card['translate'].animations()
             )
-        else:
-            main_axis['translate'].setValue(translate)
 
+        # Check if our card rotates in space
         if card['rotate'].isAnimated():
             main_axis['rotate'].copyAnimations(
                 card['rotate'].animations()
             )
-        else:
-            main_axis['rotate'].setValue(rotate)
 
-        main_axis['name'].setValue("mainA")
-        main_axis['xpos'].setValue(x)
-        main_axis['ypos'].setValue(y)
+        # TODO: What about animated scaling?
 
-        def create_axis(offset_x, offset_y, name, xform=True):
-            """Creates an axis matching a corner of a card"""
-            axis = nuke.nodes.Axis()
-            if xform:
-                axis['xform_order'].setValue(1)
-
-            axis['translate'].setValue(
-                [
-                    offset_x * uniform_scale * scaling_x,
-                    offset_y * aspect * uniform_scale * scaling_y,
-                    0
-                ]
-            )
-            axis.setInput(0, main_axis)
-            axis['name'].setValue(name)
-            axis['xpos'].setValue(x)
-            axis['ypos'].setValue(y)
-
-            return axis
-
+        # Create our axes at the corners of the card.
         upper_left = create_axis(-0.5, 0.5, 'UpperLeft')
         upper_right = create_axis(0.5, 0.5, 'UpperRight')
         lower_left = create_axis(-0.5, -0.5, 'LowerLeft', False)
@@ -179,18 +194,7 @@ def card_to_track():
 
         axes = [upper_left, upper_right, lower_left, lower_right]
 
-        def create_track(axis, name):
-            """Creates a reconcile3D node attached to the axis"""
-            track = nuke.nodes.Reconcile3D()
-            track.setInput(2, axis)
-            track.setInput(1, camera)
-            track.setInput(0, background)
-            track['name'].setValue(name)
-            track['xpos'].setValue(x)
-            track['ypos'].setValue(y)
-
-            return track
-
+        # Crate our reconcile3D nodes pointing to those axes
         upper_left_track = create_track(upper_left, "UpperLeftTrack")
         upper_right_track = create_track(upper_right, "UpperRightTrack")
         lower_left_track = create_track(lower_left, "LowerLeftTrack")
@@ -202,8 +206,8 @@ def card_to_track():
         ]
 
         card = nuke.nodes.Tracker3()
-        card['xpos'].setValue(x + 100)
-        card['ypos'].setValue(y)
+        card['xpos'].setValue(card_pos_x + 100)
+        card['ypos'].setValue(card_pos_y)
         card['label'].setValue(card_label)
         for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
             card[knob].setValue(1)
@@ -222,8 +226,8 @@ def card_to_track():
             corner[knob].copyAnimations(tracks[i]['output'].animations())
         for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
             corner[knob].setValue(tracks[i]['output'].getValueAt(settings['ref_frame']))
-        corner['xpos'].setValue(x + 200)
-        corner['ypos'].setValue(y)
+        corner['xpos'].setValue(card_pos_x + 200)
+        corner['ypos'].setValue(card_pos_y)
         corner["label"].setValue(
             "{label} ref frame: {ref_frame}".format(
                 label=card_label,
@@ -288,8 +292,8 @@ def card_to_track():
                         i
                     )
 
-                corner_new['xpos'].setValue(x + 300)
-                corner_new['ypos'].setValue(y)
+                corner_new['xpos'].setValue(card_pos_x + 300)
+                corner_new['ypos'].setValue(card_pos_y)
                 corner_new['label'].setValue(
                     "{label}Matrix".format(label=card_label)
                 )
@@ -300,8 +304,8 @@ def card_to_track():
             else:
 
                 roto = nuke.nodes.Roto()
-                roto['xpos'].setValue(x+400)
-                roto['ypos'].setValue(y)
+                roto['xpos'].setValue(card_pos_x+400)
+                roto['ypos'].setValue(card_pos_y)
                 roto['label'].setValue(card_label)
                 transform = roto['curves'].rootLayer.getTransform()
 
@@ -320,56 +324,21 @@ def card_to_track():
                     nuke.delete(card)
                     nuke.delete(corner_new)
 
-   # here is a code for Reconcile only
+    # Here we'll only do translation
     else:
-        card = nuke.selectedNodes("Card2")
-        for card in card:
-            x = card['xpos'].value()
-            y = card['ypos'].value()
-            translate = card['translate'].value()
-            rotate = card['rotate'].value()
-            scalex = card['scaling'].value(0)
-            scaley = card['scaling'].value(1)
-            card_label = card['label'].value()
-            main_axis = nuke.nodes.Axis()
-            main_axis['xform_order'].setValue(3)
-            main_axis['translate'].setValue(translate)
-            main_axis['rotate'].setValue(rotate)
-            main_axis['name'].setValue("mainA")
-            main_axis['xpos'].setValue(x)
-            main_axis['ypos'].setValue(y)
 
-        card = nuke.selectedNodes()
-        for card in card:
-            if 'fstop' in card.knobs():
-                camera = card
-            elif 'orientation' in card.knobs():
-                print "by Alexey Kuchinsky"
-            else:
-                background = card
+        main_track = create_track(main_axis, "MainTrack")
 
-        upper_left_track = nuke.nodes.Reconcile3D()
-        upper_left_track.setInput(2,main_axis)
-        upper_left_track.setInput(1,camera)
-        upper_left_track.setInput(0,background)
-        upper_left_track['name'].setValue("rec")
-        upper_left_track['xpos'].setValue(x)
-        upper_left_track['ypos'].setValue(y)
+        tracker = nuke.nodes.Tracker3()
+        tracker['enable1'].setValue(1)
 
-        card = nuke.nodes.Tracker3()
-        card['enable1'].setValue(1)
+        nuke.execute(main_track, settings['first'], settings['last'])
 
-        lower_left_track = nuke.toNode("rec")
-        nuke.execute(upper_left_track,settings['first'],settings['last'])
-        P1p = lower_left_track['output'].value()
-
-        card['track1'].copyAnimations(upper_left_track['output'].animations())
-        card['xpos'].setValue(x+100)
-        card['ypos'].setValue(y)
-        card['label'].setValue(card_label)
+        tracker['track1'].copyAnimations(main_track['output'].animations())
+        tracker['xpos'].setValue(card_pos_x + 100)
+        tracker['ypos'].setValue(card_pos_y)
+        tracker['label'].setValue(card_label)
 
         # cleanup
-        main_axis = nuke.toNode("mainA")
-        rec = nuke.toNode("rec")
         nuke.delete(main_axis)
-        nuke.delete(rec)
+        nuke.delete(main_track)
