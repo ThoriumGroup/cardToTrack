@@ -141,7 +141,7 @@ def card_to_track():
     main_axis['xpos'].setValue(card_pos_x)
     main_axis['ypos'].setValue(card_pos_y)
 
-    def create_axis(offset_x, offset_y, name, xform=True):
+    def create_axis(offset_x, offset_y, parent_axis, name, xform=True):
         """Creates an axis matching a corner of a card"""
         axis = nuke.nodes.Axis()
         if xform:
@@ -154,7 +154,7 @@ def card_to_track():
                 0
             ]
         )
-        axis.setInput(0, main_axis)
+        axis.setInput(0, parent_axis)
         axis['name'].setValue(name)
         axis['xpos'].setValue(card_pos_x)
         axis['ypos'].setValue(card_pos_y)
@@ -191,12 +191,15 @@ def card_to_track():
         # TODO: What about animated scaling?
 
         # Create our axes at the corners of the card.
-        upper_left = create_axis(-0.5, 0.5, 'UpperLeft')
-        upper_right = create_axis(0.5, 0.5, 'UpperRight')
-        lower_left = create_axis(-0.5, -0.5, 'LowerLeft', False)
-        lower_right = create_axis(0.5, -0.5, 'LowerRight', False)
+        upper_left = create_axis(-0.5, 0.5, main_axis, 'UpperLeft')
+        upper_right = create_axis(0.5, 0.5, main_axis, 'UpperRight')
+        lower_left = create_axis(-0.5, -0.5, main_axis, 'LowerLeft', False)
+        lower_right = create_axis(0.5, -0.5, main_axis, 'LowerRight', False)
 
         axes = [upper_left, upper_right, lower_left, lower_right]
+
+        # No longer need main_axis
+        nuke.delete(main_axis)
 
         # Crate our reconcile3D nodes pointing to those axes
         upper_left_track = create_track(upper_left, "UpperLeftTrack")
