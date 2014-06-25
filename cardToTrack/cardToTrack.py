@@ -157,6 +157,91 @@ def _create_reconcile3D(axis, camera, background, name):
     return track
 
 
+def corner_matrix_to_roto_matrix(corner_matrix, frange, pos=None, label=None):
+    roto = nuke.nodes.Roto()
+    if pos:
+        roto['xpos'].setValue(pos[0] + 150)
+        roto['ypos'].setValue(pos[1] + 60)
+    if label:
+        roto['label'].setValue(label)
+
+    transform = roto['curves'].rootLayer.getTransform()
+
+    for frame in frange:
+
+        corner_matrix = [
+            corner_matrix['transform_matrix'].getValueAt(
+                frame, i
+            ) for i in xrange(16)
+        ]
+
+        for i, value in enumerate(corner_matrix):
+            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
+            matrix_curve.addKey(frame, value)
+
+    return roto
+
+
+def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
+    # Create our camera matrix
+    to_matrix = nuke.math.Matrix4()
+    from_matrix = nuke.math.Matrix4()
+
+    corner_new = nuke.nodes.CornerPin2D()
+    corner_new['transform_matrix'].setAnimated()
+    if pos:
+        corner_new['xpos'].setValue(pos[0])
+        corner_new['ypos'].setValue(pos[1])
+    corner_new['label'].setValue(
+        "{label}Matrix".format(
+            label=label if label else 'CornerPin'
+        )
+    )
+
+    for frame in frange:
+
+        # We'll grab all of our current frame's corners using
+        # some list comprehensions.
+        to_corners = [
+            corner_pin[knob].valueAt(frame) for knob in [
+                'to1', 'to2', 'to3', 'to4'
+            ]
+        ]
+        # This will return a list with 4 elements, but those
+        # elements will be a tuple pair. We need to unpack the two
+        # members of each tuple into a flat list.
+        to_corners = [
+            value for values in to_corners for value in values
+        ]
+
+        # Same as the above. We get a list with tuple elements, then
+        # unpack it into a flat list.
+        from_corners = [
+            corner_pin[knob].valueAt(frame) for knob in [
+                'from1', 'from2', 'from3', 'from4'
+            ]
+        ]
+        from_corners = [
+            value for values in from_corners for value in values
+        ]
+
+        # Pass our flat lists into the matrix methods.
+        to_matrix.mapUnitSquareToQuad(*to_corners)
+        from_matrix.mapUnitSquareToQuad(*from_corners)
+
+        corner_pin_matrix = to_matrix * from_matrix.inverse()
+        corner_pin_matrix.transpose()
+
+        for i in xrange(16):
+            corner_new['transform_matrix'].setValueAt(
+                corner_pin_matrix[i],
+                frame,
+                i
+            )
+
+    return corner_new
+
+
 def reconcile_to_corner(inputs, ref_frame, pos=None, label=None):
     """Creates a CornerPin from 4 reconcile3D nodes
 
@@ -422,7 +507,7 @@ def card_to_track(card, camera, background):
             nuke.execute(reconcile, settings['first'], settings['last'])
 
         if settings['output'] in ['All', 'Tracker']:
-            reconcile_to_tracks(
+            tracker = reconcile_to_tracks(
                 inputs=tracks,
                 pos=(card_pos_x - 150, card_pos_y + 60),
                 label=card_label
@@ -432,11 +517,11 @@ def card_to_track(card, camera, background):
                 for node in axes + tracks:
                     nuke.delete(node)
                 nuke.delete(main_axis)
-                return
+                return tracker
 
         # We always need a default corner_pin node for any of the remaining
         # export types.
-        corner = reconcile_to_corner(
+        corner_pin = reconcile_to_corner(
             inputs=tracks,
             ref_frame=settings['ref_frame'],
             pos=(card_pos_x - 50, card_pos_y + 60),
@@ -449,86 +534,34 @@ def card_to_track(card, camera, background):
         nuke.delete(main_axis)
 
         if settings['output'] == 'CornerPin':
-            return
+            return corner_pin
 
-        # Create our camera matrix
-        to_matrix = nuke.math.Matrix4()
-        from_matrix = nuke.math.Matrix4()
+        corner_matrix = corner_pin_to_corner_matrix(
+            corner_pin=corner_pin,
+            frange=frange,
+            pos=(card_pos_x + 50, card_pos_y + 60),
+            label=card_label
+        )
 
-        corner_new = nuke.nodes.CornerPin2D()
-        corner_new['transform_matrix'].setAnimated()
-
-        for frame in frange:
-
-            # We'll grab all of our current frame's corners using
-            # some list comprehensions.
-            to_corners = [
-                corner[knob].valueAt(frame) for knob in [
-                    'to1', 'to2', 'to3', 'to4'
-                ]
-            ]
-            # This will return a list with 4 elements, but those
-            # elements will be a tuple pair. We need to unpack the two
-            # members of each tuple into a flat list.
-            to_corners = [
-                value for values in to_corners for value in values
-            ]
-
-            # Same as the above. We get a list with tuple elements, then
-            # unpack it into a flat list.
-            from_corners = [
-                corner[knob].valueAt(frame) for knob in [
-                    'from1', 'from2', 'from3', 'from4'
-                ]
-            ]
-            from_corners = [
-                value for values in from_corners for value in values
-            ]
-
-            # Pass our flat lists into the matrix methods.
-            to_matrix.mapUnitSquareToQuad(*to_corners)
-            from_matrix.mapUnitSquareToQuad(*from_corners)
-
-            corner_pin_matrix = to_matrix * from_matrix.inverse()
-            corner_pin_matrix.transpose()
-
-            for i in xrange(16):
-                corner_new['transform_matrix'].setValueAt(
-                    corner_pin_matrix[i],
-                    frame,
-                    i
-                )
-
-            corner_new['xpos'].setValue(card_pos_x + 50)
-            corner_new['ypos'].setValue(card_pos_y + 60)
-            corner_new['label'].setValue(
-                "{label}Matrix".format(label=card_label)
-            )
+        # No longer need corner_pin
+        nuke.delete(corner_pin)
 
         if settings['output'] == "CornerPin(matrix)":
-            nuke.delete(corner)
-            return
+            return corner_matrix
 
-        roto = nuke.nodes.Roto()
-        roto['xpos'].setValue(card_pos_x + 150)
-        roto['ypos'].setValue(card_pos_y + 60)
-        roto['label'].setValue(card_label)
-        transform = roto['curves'].rootLayer.getTransform()
-
-        for frame in frange:
-
-            corner_matrix = [
-                corner_new['transform_matrix'].getValueAt(frame, i) for i in xrange(16)
-            ]
-
-            for i, value in enumerate(corner_matrix):
-                matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
-                matrix_curve.addKey(frame, value)
+        roto = corner_matrix_to_roto_matrix(
+            corner_matrix=corner_matrix,
+            frange=frange,
+            pos=(card_pos_x + 150, card_pos_y + 60),
+            label=card_label
+        )
 
         if settings['output'] == "Roto":
-            nuke.delete(corner)
-            nuke.delete(corner_new)
-            return
+            nuke.delete(corner_matrix)
+            return roto
+
+        # Only output left is 'All'
+        return tracker, corner_pin, corner_matrix, roto
 
     # Here we'll only do translation
     else:
