@@ -124,7 +124,7 @@ def _create_axis(card, offset, parent_axis, name, xform=True):
     return axis
 
 
-def _create_track(axis, camera, background, name):
+def _create_reconcile3D(axis, camera, background, name):
     """Creates a reconcile3D node attached to the axis
 
     Args:
@@ -155,6 +155,44 @@ def _create_track(axis, camera, background, name):
     track['name'].setValue(name)
 
     return track
+
+
+def _create_corner_pin(card_pos, tracks, ref_frame, name):
+    corner = nuke.nodes.CornerPin2D()
+    for i, knob in enumerate(['to1', 'to2', 'to3', 'to4']):
+        corner[knob].copyAnimations(tracks[i]['output'].animations())
+    for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
+        corner[knob].setValue(tracks[i]['output'].getValueAt(ref_frame))
+    corner['xpos'].setValue(card_pos[0] - 50)
+    corner['ypos'].setValue(card_pos[1] + 60)
+    corner["label"].setValue(
+        "{label} ref frame: {ref_frame}".format(
+            label=name,
+            ref_frame=ref_frame
+        )
+    )
+
+    return corner
+
+
+def _create_tracker(card_pos, tracks, frange, name):
+    tracker = nuke.nodes.Tracker3()
+    tracker['xpos'].setValue(card_pos[0] - 150)
+    tracker['ypos'].setValue(card_pos[1] + 60)
+    tracker['label'].setValue(name)
+    for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
+        tracker[knob].setValue(1)
+
+    for node in tracks:
+        nuke.execute(node, frange[0], frange[1])
+
+    for i, knob in enumerate(['track1', 'track2', 'track3', 'track4']):
+        tracker[knob].copyAnimations(tracks[i]['output'].animations())
+
+    for knob in ['use_for1', 'use_for2', 'use_for3', 'use_for4']:
+        tracker[knob].setValue(7)
+
+    return tracker
 
 
 def card_to_track_wrapper():
@@ -272,22 +310,22 @@ def card_to_track(card, camera, background):
 
         # Position our axes nicely
         for i, axis in enumerate(axes):
-            x = -100 if i % 2 else 100
-            y = -100 if i < 2 else 100
+            x = -100 if i % 2 else 100  # upper_left and lower_left
+            y = -100 if i < 2 else 100  # upper_right and lower_right
             axis['xpos'].setValue(card_pos_x + x)
             axis['ypos'].setValue(card_pos_y + y)
 
         # Crate our reconcile3D nodes pointing to those axes
-        upper_left_track = _create_track(
+        upper_left_track = _create_reconcile3D(
             upper_left, camera, background, "UpperLeftTrack"
         )
-        upper_right_track = _create_track(
+        upper_right_track = _create_reconcile3D(
             upper_right, camera, background, "UpperRightTrack"
         )
-        lower_left_track = _create_track(
+        lower_left_track = _create_reconcile3D(
             lower_left, camera, background, "LowerLeftTrack"
         )
-        lower_right_track = _create_track(
+        lower_right_track = _create_reconcile3D(
             lower_right, camera, background, "LowerRightTrack"
         )
 
@@ -298,51 +336,41 @@ def card_to_track(card, camera, background):
 
         # Position our reconcile3D nodes
         for i, track in enumerate(tracks):
-            x = -110 if i % 3 else 90
-            y = 160 if i < 2 else -40
+            x = -110 if i % 3 else 90  # lower_left and upper_left
+            y = 160 if i < 2 else -40  # lower_left and lower_right
             track['xpos'].setValue(card_pos_x + x)
             track['ypos'].setValue(card_pos_y + y)
 
-        tracker = nuke.nodes.Tracker3()
-        tracker['xpos'].setValue(card_pos_x - 150)
-        tracker['ypos'].setValue(card_pos_y + 60)
-        tracker['label'].setValue(card_label)
-        for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
-            tracker[knob].setValue(1)
-
-        for node in tracks:
-            nuke.execute(node, settings['first'], settings['last'])
-
-        for i, knob in enumerate(['track1', 'track2', 'track3', 'track4']):
-            tracker[knob].copyAnimations(tracks[i]['output'].animations())
-        for knob in ['use_for1', 'use_for2', 'use_for3', 'use_for4']:
-            tracker[knob].setValue(7)
-
-        # corner pin
-        corner = nuke.nodes.CornerPin2D()
-        for i, knob in enumerate(['to1', 'to2', 'to3', 'to4']):
-            corner[knob].copyAnimations(tracks[i]['output'].animations())
-        for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
-            corner[knob].setValue(tracks[i]['output'].getValueAt(settings['ref_frame']))
-        corner['xpos'].setValue(card_pos_x - 50)
-        corner['ypos'].setValue(card_pos_y + 60)
-        corner["label"].setValue(
-            "{label} ref frame: {ref_frame}".format(
-                label=card_label,
-                ref_frame=settings['ref_frame']
+        if settings['output'] in ['All', 'Tracker']:
+            tracker = _create_tracker(
+                (card_pos_x, card_pos_y), tracks,
+                (settings['first'], settings['last']),
+                card_label
             )
-        )
+            if settings['output'] == 'Tracker':
+                # Cleanup our created nodes
+                for node in axes + tracks:
+                    nuke.delete(node)
+                nuke.delete(main_axis)
 
-        # Cleanup our created nodes
-        for node in axes + tracks:
-            nuke.delete(node)
-        nuke.delete(main_axis)
+                return tracker
+        else:
+            tracker = None
 
-        if settings['output'] == 'Tracker':
-            nuke.delete(corner)
-        elif settings['output'] == 'CornerPin':
-            nuke.delete(tracker)
-        elif settings['output'] in ['CornerPin(matrix)', 'All', 'Roto']:
+        if settings['output'] in ['All', 'CornerPin']:
+            corner = _create_corner_pin(
+                (card_pos_x, card_pos_y), tracks,
+                settings['ref_frame'], card_label
+            )
+            if settings['output'] == 'CornerPin':
+                # Cleanup our created nodes
+                for node in axes + tracks:
+                    nuke.delete(node)
+                nuke.delete(main_axis)
+
+                return corner
+
+        if settings['output'] in ['All', 'CornerPin(matrix)', 'Roto']:
 
             to_matrix = nuke.math.Matrix4()
             from_matrix = nuke.math.Matrix4()
@@ -426,7 +454,7 @@ def card_to_track(card, camera, background):
     # Here we'll only do translation
     else:
 
-        main_track = _create_track(main_axis, "MainTrack")
+        main_track = _create_reconcile3D(main_axis, "MainTrack")
 
         tracker = nuke.nodes.Tracker3()
         tracker['enable1'].setValue(1)
