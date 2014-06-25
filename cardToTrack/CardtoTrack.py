@@ -157,33 +157,76 @@ def _create_reconcile3D(axis, camera, background, name):
     return track
 
 
-def _create_corner_pin(card_pos, tracks, ref_frame, name):
+def reconcile_to_corner(inputs, ref_frame, pos=None, label=None):
+    """Creates a CornerPin from 4 reconcile3D nodes
+
+    Args:
+        inputs : [<nuke.nodes.Reconcile3D>]
+            A list of exactly 4 Reconcile3D nodes, corresponding to the
+            desired corners of the corner pin.
+
+            Order should be:
+            Lower left, lower right, upper right, upper left
+            (Counter clockwise starting from lower left)
+
+        ref_frame : (int)
+            Reference frame to key corner pin to.
+
+        pos=None : (int, int)
+            Position to place returned CornerPin
+
+        label=None : (str)
+            What to label the node (in addition to a read out of the
+            ref_frame value).
+
+    Returns:
+        (<nuke.nodes.CornerPin2D>)
+            CornerPin node with animated 'to' fields, and 'from' fields set
+            to the ref_frame value.
+
+    Raises:
+        ValueError
+            If given less than or more than 4 Reconcile3D nodes in inputs.
+
+    """
+
+    if len(inputs) != 4:
+        raise ValueError(
+            "create_tracks needs exactly 4 Reconcile3D nodes in the 'inputs' "
+            "arg. Number of Reconcile3D nodes provided: "
+            "{tracks_length}".format(
+                tracks_length=len(inputs)
+            )
+        )
+
     corner = nuke.nodes.CornerPin2D()
-    for i, knob in enumerate(['to1', 'to2', 'to3', 'to4']):
-        corner[knob].copyAnimations(tracks[i]['output'].animations())
-    for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
-        corner[knob].setValue(tracks[i]['output'].getValueAt(ref_frame))
-    corner['xpos'].setValue(card_pos[0] - 50)
-    corner['ypos'].setValue(card_pos[1] + 60)
+    if pos:
+        corner['xpos'].setValue(pos[0])
+        corner['ypos'].setValue(pos[1])
+
     corner["label"].setValue(
-        "{label} ref frame: {ref_frame}".format(
-            label=name,
+        "{label}ref frame: {ref_frame}".format(
+            label=label + ' ' if label else '',
             ref_frame=ref_frame
         )
     )
 
+    for i in xrange(4):
+        to_knob = "to{0}".format(i + 1)
+        from_knob = "from{0}".format(i + 1)
+
+        corner[to_knob].copyAnimations(inputs[i]['output'].animations())
+        corner[from_knob].setValue(inputs[i]['output'].getValueAt(ref_frame))
+
     return corner
 
 
-def create_tracker_from_reconcile(tracks, frange, pos=None, label=None):
+def reconcile_to_tracks(inputs, pos=None, label=None):
     """Creates a tracking node with track information from tracks
 
     Args:
-        tracks : (<nuke.nodes.Reconcile3D>)
+        inputs : [<nuke.nodes.Reconcile3D>]
             A list of up to 4 Reconcile3D nodes to add trackers for.
-
-        frange : (int, int)
-            Start and end frames.
 
         pos=None : (int, int)
             Position to place returned tracker.
@@ -200,6 +243,15 @@ def create_tracker_from_reconcile(tracks, frange, pos=None, label=None):
             If tracks has more than 4 members.
 
     """
+    if len(inputs) > 4:
+        raise ValueError(
+            "reconcile_to_tracks takes at most 4 Reconcile3D nodes in the "
+            "'inputs' arg. Number of Reconcile3D nodes provided: "
+            "{tracks_length}".format(
+                tracks_length=len(inputs)
+            )
+        )
+
     tracker = nuke.nodes.Tracker3()
     if pos:
         tracker['xpos'].setValue(pos[0])
@@ -207,30 +259,14 @@ def create_tracker_from_reconcile(tracks, frange, pos=None, label=None):
     if label:
         tracker['label'].setValue(label)
 
-    if len(tracks) > 4:
-        nuke.delete(tracker)
-        raise ValueError(
-            "create_tracks takes at most 4 Reconcile3D nodes in the tracks "
-            "arg. Number of Reconcile3D nodes provided: "
-            "{tracks_length}".format(
-                tracks_length=len(tracks)
-            )
-        )
+    for i in xrange(len(inputs)):
+        enable_knob = 'enable{0}'.format(i + 1)
+        track_knob = 'track{0}'.format(i + 1)
+        use_knob = 'use_for{0}'.format(i + 1)
 
-    for i in xrange(len(tracks)):
-        knob = 'enable{0}'.format(i + 1)
-        tracker[knob].setValue(1)
-
-    for node in tracks:
-        nuke.execute(node, frange[0], frange[1])
-
-    for i in xrange(len(tracks)):
-        knob = 'track{0}'.format(i + 1)
-        tracker[knob].copyAnimations(tracks[i]['output'].animations())
-
-    for i in xrange(len(tracks)):
-        knob = 'use_for{0}'.format(i + 1)
-        tracker[knob].setValue(7)
+        tracker[enable_knob].setValue(1)
+        tracker[track_knob].copyAnimations(inputs[i]['output'].animations())
+        tracker[use_knob].setValue(7)
 
     return tracker
 
@@ -381,10 +417,13 @@ def card_to_track(card, camera, background):
             track['xpos'].setValue(card_pos_x + x)
             track['ypos'].setValue(card_pos_y + y)
 
+        # Evaluate our Reconciles for each frame
+        for reconcile in tracks:
+            nuke.execute(reconcile, settings['first'], settings['last'])
+
         if settings['output'] in ['All', 'Tracker']:
-            create_tracker_from_reconcile(
-                tracks=tracks,
-                frange=(settings['first'], settings['last']),
+            reconcile_to_tracks(
+                inputs=tracks,
                 pos=(card_pos_x - 150, card_pos_y + 60),
                 label=card_label
             )
@@ -395,12 +434,13 @@ def card_to_track(card, camera, background):
                 nuke.delete(main_axis)
                 return
 
-
         # We always need a default corner_pin node for any of the remaining
         # export types.
-        corner = _create_corner_pin(
-            (card_pos_x, card_pos_y), tracks,
-            settings['ref_frame'], card_label
+        corner = reconcile_to_corner(
+            inputs=tracks,
+            ref_frame=settings['ref_frame'],
+            pos=(card_pos_x - 50, card_pos_y + 60),
+            label=card_label
         )
 
         # Cleanup our created nodes, as we don't need them anymore.
