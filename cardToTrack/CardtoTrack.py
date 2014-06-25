@@ -209,20 +209,20 @@ def card_to_track():
             upper_right_track, upper_left_track,
         ]
 
-        card = nuke.nodes.Tracker3()
-        card['xpos'].setValue(card_pos_x + 100)
-        card['ypos'].setValue(card_pos_y)
-        card['label'].setValue(card_label)
+        tracker = nuke.nodes.Tracker3()
+        tracker['xpos'].setValue(card_pos_x + 100)
+        tracker['ypos'].setValue(card_pos_y)
+        tracker['label'].setValue(card_label)
         for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
-            card[knob].setValue(1)
+            tracker[knob].setValue(1)
 
         for node in tracks:
             nuke.execute(node, settings['first'], settings['last'])
 
         for i, knob in enumerate(['track1', 'track2', 'track3', 'track4']):
-            card[knob].copyAnimations(tracks[i]['output'].animations())
+            tracker[knob].copyAnimations(tracks[i]['output'].animations())
         for knob in ['use_for1', 'use_for2', 'use_for3', 'use_for4']:
-            card[knob].setValue(7)
+            tracker[knob].setValue(7)
 
         # corner pin
         corner = nuke.nodes.CornerPin2D()
@@ -246,7 +246,7 @@ def card_to_track():
         if settings['output'] == 'Tracker':
             nuke.delete(corner)
         elif settings['output'] == 'CornerPin':
-            nuke.delete(card)
+            nuke.delete(tracker)
         elif settings['output'] in ['CornerPin(matrix)', 'All', 'Roto']:
 
             to_matrix = nuke.math.Matrix4()
@@ -304,7 +304,7 @@ def card_to_track():
 
             if settings['output'] == "CornerPin(matrix)":
                 nuke.delete(corner)
-                nuke.delete(card)
+                nuke.delete(tracker)
             else:
 
                 roto = nuke.nodes.Roto()
@@ -325,7 +325,7 @@ def card_to_track():
 
                 if settings['output'] == "Roto":
                     nuke.delete(corner)
-                    nuke.delete(card)
+                    nuke.delete(tracker)
                     nuke.delete(corner_new)
 
     # Here we'll only do translation
