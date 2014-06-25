@@ -114,6 +114,25 @@ __all__ = [
 
 
 def _get_menu_item_index(menu, item):
+    """Determines what should be the index of item if menu was alphabetical
+
+    Args:
+        menu : (<nuke.Menu>)
+            The Nuke menu that we want to determine the place our item in.
+
+        item : (str)
+            The name of the menu item we want to determine the alphabteical
+            index if placed within menu.
+
+    Returns:
+        (int)
+            The index of `item` if placed within a sorted list of the items
+            that already exist in `menu`.
+
+    Raises:
+        N/A
+
+    """
     menu_items = [entry.name() for entry in menu.items()]
     menu_items.append(item)
     menu_items.sort()
