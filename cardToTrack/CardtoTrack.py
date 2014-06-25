@@ -139,7 +139,7 @@ def card_to_track():
     main_axis['rotate'].setValue(card_rotate)
     main_axis['name'].setValue("MainAxis")
     main_axis['xpos'].setValue(card_pos_x)
-    main_axis['ypos'].setValue(card_pos_y)
+    main_axis['ypos'].setValue(card_pos_y + 40)
 
     def create_axis(offset_x, offset_y, parent_axis, name, xform=True):
         """Creates an axis matching a corner of a card"""
@@ -156,8 +156,6 @@ def card_to_track():
         )
         axis.setInput(0, parent_axis)
         axis['name'].setValue(name)
-        axis['xpos'].setValue(card_pos_x)
-        axis['ypos'].setValue(card_pos_y)
 
         return axis
 
@@ -198,6 +196,13 @@ def card_to_track():
 
         axes = [upper_left, upper_right, lower_left, lower_right]
 
+        # Position our axes nicely
+        for i, axis in enumerate(axes):
+            x = -100 if i % 2 else 100
+            y = -100 if i < 2 else 100
+            axis['xpos'].setValue(card_pos_x + x)
+            axis['ypos'].setValue(card_pos_y + y)
+
         # Crate our reconcile3D nodes pointing to those axes
         upper_left_track = create_track(upper_left, "UpperLeftTrack")
         upper_right_track = create_track(upper_right, "UpperRightTrack")
@@ -209,9 +214,16 @@ def card_to_track():
             upper_right_track, upper_left_track,
         ]
 
+        # Position our reconcile3D nodes
+        for i, track in enumerate(tracks):
+            x = -110 if i % 3 else 90
+            y = 160 if i < 2 else -40
+            track['xpos'].setValue(card_pos_x + x)
+            track['ypos'].setValue(card_pos_y + y)
+
         tracker = nuke.nodes.Tracker3()
-        tracker['xpos'].setValue(card_pos_x + 100)
-        tracker['ypos'].setValue(card_pos_y)
+        tracker['xpos'].setValue(card_pos_x - 150)
+        tracker['ypos'].setValue(card_pos_y + 60)
         tracker['label'].setValue(card_label)
         for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
             tracker[knob].setValue(1)
@@ -230,8 +242,8 @@ def card_to_track():
             corner[knob].copyAnimations(tracks[i]['output'].animations())
         for i, knob in enumerate(['from1', 'from2', 'from3', 'from4']):
             corner[knob].setValue(tracks[i]['output'].getValueAt(settings['ref_frame']))
-        corner['xpos'].setValue(card_pos_x + 200)
-        corner['ypos'].setValue(card_pos_y)
+        corner['xpos'].setValue(card_pos_x - 50)
+        corner['ypos'].setValue(card_pos_y + 60)
         corner["label"].setValue(
             "{label} ref frame: {ref_frame}".format(
                 label=card_label,
@@ -297,8 +309,8 @@ def card_to_track():
                         i
                     )
 
-                corner_new['xpos'].setValue(card_pos_x + 300)
-                corner_new['ypos'].setValue(card_pos_y)
+                corner_new['xpos'].setValue(card_pos_x + 50)
+                corner_new['ypos'].setValue(card_pos_y + 60)
                 corner_new['label'].setValue(
                     "{label}Matrix".format(label=card_label)
                 )
@@ -309,8 +321,8 @@ def card_to_track():
             else:
 
                 roto = nuke.nodes.Roto()
-                roto['xpos'].setValue(card_pos_x+400)
-                roto['ypos'].setValue(card_pos_y)
+                roto['xpos'].setValue(card_pos_x + 150)
+                roto['ypos'].setValue(card_pos_y + 60)
                 roto['label'].setValue(card_label)
                 transform = roto['curves'].rootLayer.getTransform()
 
