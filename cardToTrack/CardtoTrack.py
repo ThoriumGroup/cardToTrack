@@ -71,7 +71,10 @@ def _card_to_track_panel():
     return panel_results
 
 
-def corn3D():
+def card_to_track():
+
+    # Grab our selected nodes, there should only be three and we'll iterate
+    # over them to determine which is which.
     nodes = nuke.selectedNodes()
 
     if len(nodes) != 3:
