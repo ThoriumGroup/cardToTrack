@@ -84,6 +84,10 @@ def card_to_track():
         )
         return
 
+    camera = None
+    card = None
+    background = None
+
     # Assign all of our required nodes to variables
     for node in nodes:
         if node.Class() == 'Camera2':
