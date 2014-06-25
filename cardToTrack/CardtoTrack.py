@@ -175,21 +175,61 @@ def _create_corner_pin(card_pos, tracks, ref_frame, name):
     return corner
 
 
-def _create_tracker(card_pos, tracks, frange, name):
+def create_tracker_from_reconcile(tracks, frange, pos=None, label=None):
+    """Creates a tracking node with track information from tracks
+
+    Args:
+        tracks : (<nuke.nodes.Reconcile3D>)
+            A list of up to 4 Reconcile3D nodes to add trackers for.
+
+        frange : (int, int)
+            Start and end frames.
+
+        pos=None : (int, int)
+            Position to place returned tracker.
+
+        label=None : (str)
+            What to label the node.
+
+    Returns:
+        (<nuke.nodes.Tracker3>)
+            Tracker node with the input Reconcile3D tracks being the trackers.
+
+    Raises:
+        ValueError
+            If tracks has more than 4 members.
+
+    """
     tracker = nuke.nodes.Tracker3()
-    tracker['xpos'].setValue(card_pos[0] - 150)
-    tracker['ypos'].setValue(card_pos[1] + 60)
-    tracker['label'].setValue(name)
-    for knob in ['enable1', 'enable2', 'enable3', 'enable4']:
+    if pos:
+        tracker['xpos'].setValue(pos[0])
+        tracker['ypos'].setValue(pos[1])
+    if label:
+        tracker['label'].setValue(label)
+
+    if len(tracks) > 4:
+        nuke.delete(tracker)
+        raise ValueError(
+            "create_tracks takes at most 4 Reconcile3D nodes in the tracks "
+            "arg. Number of Reconcile3D nodes provided: "
+            "{tracks_length}".format(
+                tracks_length=len(tracks)
+            )
+        )
+
+    for i in xrange(len(tracks)):
+        knob = 'enable{0}'.format(i + 1)
         tracker[knob].setValue(1)
 
     for node in tracks:
         nuke.execute(node, frange[0], frange[1])
 
-    for i, knob in enumerate(['track1', 'track2', 'track3', 'track4']):
+    for i in xrange(len(tracks)):
+        knob = 'track{0}'.format(i + 1)
         tracker[knob].copyAnimations(tracks[i]['output'].animations())
 
-    for knob in ['use_for1', 'use_for2', 'use_for3', 'use_for4']:
+    for i in xrange(len(tracks)):
+        knob = 'use_for{0}'.format(i + 1)
         tracker[knob].setValue(7)
 
     return tracker
@@ -342,10 +382,11 @@ def card_to_track(card, camera, background):
             track['ypos'].setValue(card_pos_y + y)
 
         if settings['output'] in ['All', 'Tracker']:
-            _create_tracker(
-                (card_pos_x, card_pos_y), tracks,
-                (settings['first'], settings['last']),
-                card_label
+            create_tracker_from_reconcile(
+                tracks=tracks,
+                frange=(settings['first'], settings['last']),
+                pos=(card_pos_x - 150, card_pos_y + 60),
+                label=card_label
             )
             if settings['output'] == 'Tracker':
                 # Cleanup our created nodes
