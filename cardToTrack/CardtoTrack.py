@@ -198,9 +198,6 @@ def card_to_track():
 
         axes = [upper_left, upper_right, lower_left, lower_right]
 
-        # No longer need main_axis
-        nuke.delete(main_axis)
-
         # Crate our reconcile3D nodes pointing to those axes
         upper_left_track = create_track(upper_left, "UpperLeftTrack")
         upper_right_track = create_track(upper_right, "UpperRightTrack")
@@ -245,6 +242,7 @@ def card_to_track():
         # Cleanup our created nodes
         for node in axes + tracks:
             nuke.delete(node)
+        nuke.delete(main_axis)
 
         if settings['output'] == 'Tracker':
             nuke.delete(corner)
