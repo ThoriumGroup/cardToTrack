@@ -352,104 +352,102 @@ def card_to_track(card, camera, background):
                 for node in axes + tracks:
                     nuke.delete(node)
                 nuke.delete(main_axis)
+                return
 
-                return tracker
-        else:
-            tracker = None
 
-        if settings['output'] in ['All', 'CornerPin']:
-            corner = _create_corner_pin(
-                (card_pos_x, card_pos_y), tracks,
-                settings['ref_frame'], card_label
-            )
-            if settings['output'] == 'CornerPin':
-                # Cleanup our created nodes
-                for node in axes + tracks:
-                    nuke.delete(node)
-                nuke.delete(main_axis)
+        # We always need a default corner_pin node for any of the remaining
+        # export types.
+        corner = _create_corner_pin(
+            (card_pos_x, card_pos_y), tracks,
+            settings['ref_frame'], card_label
+        )
 
-                return corner
+        # Cleanup our created nodes, as we don't need them anymore.
+        for node in axes + tracks:
+            nuke.delete(node)
+        nuke.delete(main_axis)
 
-        if settings['output'] in ['All', 'CornerPin(matrix)', 'Roto']:
+        if settings['output'] == 'CornerPin':
+            return
 
-            to_matrix = nuke.math.Matrix4()
-            from_matrix = nuke.math.Matrix4()
+        # Create our camera matrix
+        to_matrix = nuke.math.Matrix4()
+        from_matrix = nuke.math.Matrix4()
 
-            corner_new = nuke.nodes.CornerPin2D()
-            corner_new['transform_matrix'].setAnimated()
+        corner_new = nuke.nodes.CornerPin2D()
+        corner_new['transform_matrix'].setAnimated()
 
-            for frame in frange:
+        for frame in frange:
 
-                # We'll grab all of our current frame's corners using
-                # some list comprehensions.
-                to_corners = [
-                    corner[knob].valueAt(frame) for knob in [
-                        'to1', 'to2', 'to3', 'to4'
-                    ]
+            # We'll grab all of our current frame's corners using
+            # some list comprehensions.
+            to_corners = [
+                corner[knob].valueAt(frame) for knob in [
+                    'to1', 'to2', 'to3', 'to4'
                 ]
-                # This will return a list with 4 elements, but those
-                # elements will be a tuple pair. We need to unpack the two
-                # members of each tuple into a flat list.
-                to_corners = [
-                    value for values in to_corners for value in values
+            ]
+            # This will return a list with 4 elements, but those
+            # elements will be a tuple pair. We need to unpack the two
+            # members of each tuple into a flat list.
+            to_corners = [
+                value for values in to_corners for value in values
+            ]
+
+            # Same as the above. We get a list with tuple elements, then
+            # unpack it into a flat list.
+            from_corners = [
+                corner[knob].valueAt(frame) for knob in [
+                    'from1', 'from2', 'from3', 'from4'
                 ]
+            ]
+            from_corners = [
+                value for values in from_corners for value in values
+            ]
 
-                # Same as the above. We get a list with tuple elements, then
-                # unpack it into a flat list.
-                from_corners = [
-                    corner[knob].valueAt(frame) for knob in [
-                        'from1', 'from2', 'from3', 'from4'
-                    ]
-                ]
-                from_corners = [
-                    value for values in from_corners for value in values
-                ]
+            # Pass our flat lists into the matrix methods.
+            to_matrix.mapUnitSquareToQuad(*to_corners)
+            from_matrix.mapUnitSquareToQuad(*from_corners)
 
-                # Pass our flat lists into the matrix methods.
-                to_matrix.mapUnitSquareToQuad(*to_corners)
-                from_matrix.mapUnitSquareToQuad(*from_corners)
+            corner_pin_matrix = to_matrix * from_matrix.inverse()
+            corner_pin_matrix.transpose()
 
-                corner_pin_matrix = to_matrix * from_matrix.inverse()
-                corner_pin_matrix.transpose()
-
-                for i in xrange(16):
-                    corner_new['transform_matrix'].setValueAt(
-                        corner_pin_matrix[i],
-                        frame,
-                        i
-                    )
-
-                corner_new['xpos'].setValue(card_pos_x + 50)
-                corner_new['ypos'].setValue(card_pos_y + 60)
-                corner_new['label'].setValue(
-                    "{label}Matrix".format(label=card_label)
+            for i in xrange(16):
+                corner_new['transform_matrix'].setValueAt(
+                    corner_pin_matrix[i],
+                    frame,
+                    i
                 )
 
-            if settings['output'] == "CornerPin(matrix)":
-                nuke.delete(corner)
-                nuke.delete(tracker)
-            else:
+            corner_new['xpos'].setValue(card_pos_x + 50)
+            corner_new['ypos'].setValue(card_pos_y + 60)
+            corner_new['label'].setValue(
+                "{label}Matrix".format(label=card_label)
+            )
 
-                roto = nuke.nodes.Roto()
-                roto['xpos'].setValue(card_pos_x + 150)
-                roto['ypos'].setValue(card_pos_y + 60)
-                roto['label'].setValue(card_label)
-                transform = roto['curves'].rootLayer.getTransform()
+        if settings['output'] == "CornerPin(matrix)":
+            nuke.delete(corner)
+            return
 
-                for frame in frange:
+        roto = nuke.nodes.Roto()
+        roto['xpos'].setValue(card_pos_x + 150)
+        roto['ypos'].setValue(card_pos_y + 60)
+        roto['label'].setValue(card_label)
+        transform = roto['curves'].rootLayer.getTransform()
 
-                    corner_matrix = [
-                        corner_new['transform_matrix'].getValueAt(frame, i) for i in xrange(16)
-                    ]
+        for frame in frange:
 
-                    for i, value in enumerate(corner_matrix):
-                        matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
-                        matrix_curve.addKey(frame, value)
+            corner_matrix = [
+                corner_new['transform_matrix'].getValueAt(frame, i) for i in xrange(16)
+            ]
 
-                if settings['output'] == "Roto":
-                    nuke.delete(corner)
-                    nuke.delete(tracker)
-                    nuke.delete(corner_new)
+            for i, value in enumerate(corner_matrix):
+                matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
+                matrix_curve.addKey(frame, value)
+
+        if settings['output'] == "Roto":
+            nuke.delete(corner)
+            nuke.delete(corner_new)
+            return
 
     # Here we'll only do translation
     else:
