@@ -34,7 +34,7 @@ def _card_to_track_panel():
     last = int(nuke.Root()['last_frame'].value())
 
     # Construct our panel
-    panel = nuke.Panel("Card to track")
+    panel = nuke.Panel("Card to Track")
 
     panel.addSingleLineInput(
         "Range:",
@@ -48,7 +48,8 @@ def _card_to_track_panel():
         "All "
         "CornerPin "
         "CornerPin(Matrix) "
-        "Roto Tracker"
+        "Roto "
+        "Tracker"
     )
     panel.addSingleLineInput("Ref frame:", frame)
     panel.addBooleanCheckBox('Translate Only', False)
