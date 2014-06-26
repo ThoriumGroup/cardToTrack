@@ -12,7 +12,8 @@ Card To Track
 Converts a 3d card's corners to tracking points, corner pins or a
 matrix calculation for use on a corner pin or roto.
 
-## Usage
+Usage
+-----
 
 Select a camera, the card to track, and a background plate (for calculating
 image resolution) and select CardToTrack from the menu. Fill out the desired
@@ -31,7 +32,8 @@ Alexey Kuchinski:
 
 https://www.youtube.com/watch?v=-NTdTy2PzQ0
 
-## Installation
+Installation
+------------
 
 To install, simply ensure the 'cardToTrack' directory is in your .nuke
 directory or anywhere else within the Nuke python path.
@@ -41,49 +43,42 @@ Then, add the following lines to your 'menu.py' file:
     import cardToTrack
     cardToTrack.run()
 
-## Public Functions
-
-    run()
-        Adds the cardToTrack functions to the User top menu.
-
-## Changelog
+Changelog
+---------
 
 *New in version 6.0:*
 
 - Massive refactor and code cleanup
-- Will no longer install menu items automatically on import, you need to call
-    `cardToTrack.run()`
-- The main function for executing cardToTrack has been renamed from `corn3D()`
-    to `card_to_track_wrapper()`. If you already have python objects for your
-    camera, card and background you can call `card_to_track()` which takes
-    those arguments.
+- Will no longer install menu items automatically on import, you need to call `cardToTrack.run()`
+- The main function for executing cardToTrack has been renamed from `corn3D()` to `card_to_track_wrapper()`. If you already have python objects for your camera, card and background you can call `card_to_track()` which takes those arguments.
 - New functions!
-    - `reconcile_to_corner()` that takes 4 Reconcile3D nodes in a list, and
-        returns a CornerPin.
-    - `reconcile_to_tracks()` takes up to 4 Reconcile3D nodes in a list, and
-        returns a Tracker with those Reconcile's converted to tracks.
+    - `corner_pin_to_corner_matrix()` transforms a CornerPin with keyframes to and from points into a transformation matrix based CornerPin, leaving the to/from knobs completely free.
+    - `matrix_to_roto_matrix()` copies any node's transformation matrix into a Roto node's matrix.
+    - `reconcile_to_corner()` that takes 4 Reconcile3D nodes in a list, and returns a CornerPin.
+    - `reconcile_to_tracks()` takes up to 4 Reconcile3D nodes in a list, and returns a Tracker with those Reconcile3D's converted to tracks.
 
-## License
+License
+-------
+::
+    The MIT License (MIT)
 
-The MIT License (MIT)
+    cardToTrack
+    Copyright (c) 2011-2014, Alexey Kuchinski and Sean Wallitsch
 
-cardToTrack
-Copyright (c) 2011-2014, Alexey Kuchinski and Sean Wallitsch
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
