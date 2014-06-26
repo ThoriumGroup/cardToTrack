@@ -1,3 +1,64 @@
+#!/usr/bin/env python
+"""
+
+Card To Track
+=============
+
+This submodule contains the functions needed to executed a a CardToTrack, as
+well as a small collection of useful conversion functions.
+
+## Public Functions
+
+    card_to_track()
+        Takes the corners of a card and convert it to a variety of 2D outputs,
+        this is the main function of this module, and it calls all the other
+        functions to execute it's tasks.
+
+    card_to_track_wrapper()
+        Wrapper function that determines which nodes to execute `card_to_track`
+        with based on the current node selections.
+
+    corner_pin_to_corner_matrix()
+        Transforms a CornerPin's to and from corners into a transformation
+        matrix based CornerPin, leaving the to/from knobs completely free.
+
+    matrix_to_roto_matrix()
+        Copies any node's transformation matrix into a Roto node's matrix.
+
+    reconcile_to_corner()
+        Takes 4 Reconcile3D nodes and converts them into points on a corner pin
+        based on a reference frame.
+
+    reconcile_to_tracks()
+        Takes up to 4 Reconcile3D nodes and copies their values into a Tracker
+        node.
+
+## License
+
+The MIT License (MIT)
+
+cardToTrack
+Copyright (c) 2011-2014, Alexey Kuchinski and Sean Wallitsch
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
 # =============================================================================
 # IMPORTS
 # =============================================================================
@@ -188,7 +249,7 @@ def _create_reconcile3D(axis, camera, background, name):
 
 
 def card_to_track(card, camera, background):
-    """Takes the corners of a card and converts it to a variety of 2D outputs
+    """Takes the corners of a card and convert it to a variety of 2D outputs
 
     Args:
         card : (<nuke.nodes.Card2>)
@@ -463,7 +524,7 @@ def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
 
     Raises:
         N/A
-    
+
     """
     # Create our camera matrix
     to_matrix = nuke.math.Matrix4()
