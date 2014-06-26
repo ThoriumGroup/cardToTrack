@@ -306,7 +306,7 @@ def reconcile_to_corner(inputs, ref_frame, pos=None, label=None):
     return corner
 
 
-def reconcile_to_tracks(inputs, pos=None, label=None):
+def reconcile_to_tracks(inputs, pos=None, label=None, translate_only=False):
     """Creates a tracking node with track information from tracks
 
     Args:
@@ -318,6 +318,10 @@ def reconcile_to_tracks(inputs, pos=None, label=None):
 
         label=None : (str)
             What to label the node.
+
+        translate_only=False (bool)
+            If True, each tracker will be set only affect translation, not
+            rotation or sale.
 
     Returns:
         (<nuke.nodes.Tracker3>)
@@ -351,7 +355,8 @@ def reconcile_to_tracks(inputs, pos=None, label=None):
 
         tracker[enable_knob].setValue(1)
         tracker[track_knob].copyAnimations(inputs[i]['output'].animations())
-        tracker[use_knob].setValue(7)
+        if not translate_only:
+            tracker[use_knob].setValue(7)
 
     return tracker
 
@@ -567,17 +572,17 @@ def card_to_track(card, camera, background):
     else:
 
         main_track = _create_reconcile3D(main_axis, "MainTrack")
-
-        tracker = nuke.nodes.Tracker3()
-        tracker['enable1'].setValue(1)
-
         nuke.execute(main_track, settings['first'], settings['last'])
 
-        tracker['track1'].copyAnimations(main_track['output'].animations())
-        tracker['xpos'].setValue(card_pos_x + 100)
-        tracker['ypos'].setValue(card_pos_y)
-        tracker['label'].setValue(card_label)
+        tracker = reconcile_to_tracks(
+            inputs=[main_track],
+            pos=(card_pos_x, card_pos_y + 60),
+            label=card_label,
+            translate_only=True
+        )
 
         # cleanup
         nuke.delete(main_axis)
         nuke.delete(main_track)
+
+        return tracker
