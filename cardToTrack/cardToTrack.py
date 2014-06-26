@@ -416,6 +416,27 @@ def card_to_track_wrapper():
 
 
 def card_to_track(card, camera, background):
+    """Takes the corners of a card and converts it to a variety of 2D outputs
+
+    Args:
+        card : (<nuke.nodes.Card2>)
+            The card whose corners we wish to track.
+
+        camera : (<nuke.nodes.Camera2>)
+            The camera with the motion we want to track the card through.
+
+        background : (<nuke.Node>)
+            An image type background we can use to determine the format
+            for the trackers.
+
+    Returns:
+        (<nuke.nodes.Tracker3>|<nuke.nodes.CornerPin2D>|<nuke.nodes.Roto>)
+            The selected node types (or all) will be returned.
+
+    Raises:
+        N/A
+
+    """
 
     # Open a panel to grab our required settings and return a dictionary.
     settings = _card_to_track_panel()
