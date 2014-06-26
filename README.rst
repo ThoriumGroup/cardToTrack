@@ -59,7 +59,7 @@ Changelog
 
 License
 -------
-::
+
     The MIT License (MIT)
 
     cardToTrack
