@@ -99,7 +99,7 @@ __maintainer_email__ = "sean@grenadehop.com"
 __module_name__ = "cardToTrack"
 __short_desc__ = "Converts a 3d card to tracking points, corner pins or matrix"
 __status__ = "Development"
-__url__ = "https://github.com/ThoriumGroup/cardToTrack"
+__url__ = "http://github.com/ThoriumGroup/cardToTrack"
 
 # ==============================================================================
 # EXPORTS
