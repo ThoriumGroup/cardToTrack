@@ -79,7 +79,10 @@ except ImportError:
     pass
 
 # cardToTrack Imports
-from .cardToTrack import card_to_track, card_to_track_wrapper
+from .cardToTrack import (
+    card_to_track, card_to_track_wrapper, corner_pin_to_corner_matrix,
+    matrix_to_roto_matrix, reconcile_to_corner, reconcile_to_tracks
+)
 
 # ==============================================================================
 # GLOBALS
@@ -104,7 +107,11 @@ __url__ = "https://github.com/ThoriumGroup/cardToTrack"
 
 __all__ = [
     'card_to_track',
-    'card_to_track_wrapper'
+    'card_to_track_wrapper',
+    'corner_pin_to_corner_matrix',
+    'matrix_to_roto_matrix',
+    'reconcile_to_corner',
+    'reconcile_to_tracks',
     'run',
 ]
 
