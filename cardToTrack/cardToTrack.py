@@ -440,6 +440,31 @@ def card_to_track_wrapper():
 
 
 def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
+    """Transforms a CornerPin's to and from corners into a matrix
+
+    Args:
+        corner_pin : (<nuke.nodes.CornerPin2D>)
+            The corner_pin node whose corners we want to create a
+            transformation matrix from.
+
+        frange : (<nuke.FrameRange>|[int])
+            The frame range to grab the values from.
+
+        pos=None : (int, int)
+            An x, y position to place the node at.
+
+        label=None : (str)
+            What to label the created node.
+
+    Returns:
+        (<nuke.nodes.CornerPin2D>)
+            A corner pin node with the to/from values not set, but the
+            transformation matrix set.
+
+    Raises:
+        N/A
+    
+    """
     # Create our camera matrix
     to_matrix = nuke.math.Matrix4()
     from_matrix = nuke.math.Matrix4()
@@ -509,8 +534,7 @@ def matrix_to_roto_matrix(matrix, frange, pos=None, label=None):
             Any node with the 'transform_matrix' knob.
 
         frange : (<nuke.FrameRange>|[int])
-            A FrameRange object to iterate over. A simple list of every frame
-            desired will work too.
+            The frame range to grab the values from.
 
         pos=None : (int, int)
             An x, y position to place the node at.
