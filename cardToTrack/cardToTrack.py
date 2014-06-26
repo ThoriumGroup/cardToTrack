@@ -15,8 +15,8 @@ except ImportError:
 __all__ = [
     'card_to_track',
     'card_to_track_wrapper',
-    'corner_matrix_to_roto_matrix',
     'corner_pin_to_corner_matrix',
+    'matrix_to_roto_matrix',
     'reconcile_to_corner',
     'reconcile_to_tracks',
 ]
@@ -347,8 +347,8 @@ def card_to_track(card, camera, background):
         if settings['output'] == "CornerPin(matrix)":
             return corner_matrix
 
-        roto = corner_matrix_to_roto_matrix(
-            corner_matrix=corner_matrix,
+        roto = matrix_to_roto_matrix(
+            matrix=corner_matrix,
             frange=frange,
             pos=(card_pos_x + 150, card_pos_y + 60),
             label=card_label
@@ -439,33 +439,6 @@ def card_to_track_wrapper():
 # =============================================================================
 
 
-def corner_matrix_to_roto_matrix(corner_matrix, frange, pos=None, label=None):
-    roto = nuke.nodes.Roto()
-    if pos:
-        roto['xpos'].setValue(pos[0] + 150)
-        roto['ypos'].setValue(pos[1] + 60)
-    if label:
-        roto['label'].setValue(label)
-
-    transform = roto['curves'].rootLayer.getTransform()
-
-    for frame in frange:
-
-        corner_matrix = [
-            corner_matrix['transform_matrix'].getValueAt(
-                frame, i
-            ) for i in xrange(16)
-        ]
-
-        for i, value in enumerate(corner_matrix):
-            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
-            matrix_curve.addKey(frame, value)
-
-    return roto
-
-# =============================================================================
-
-
 def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
     # Create our camera matrix
     to_matrix = nuke.math.Matrix4()
@@ -524,6 +497,57 @@ def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
             )
 
     return corner_new
+
+# =============================================================================
+
+
+def matrix_to_roto_matrix(matrix, frange, pos=None, label=None):
+    """Copies a transform matrix from a node to a roto node with a matrix
+
+    Args:
+        matrix : (<nuke.Node>)
+            Any node with the 'transform_matrix' knob.
+
+        frange : (<nuke.FrameRange>|[int])
+            A FrameRange object to iterate over. A simple list of every frame
+            desired will work too.
+
+        pos=None : (int, int)
+            An x, y position to place the node at.
+
+        label=None : (str)
+            What to label the created node.
+
+    Returns:
+        (<nuke.nodes.Roto>)
+            The resultant roto node with the transform matrix baked in.
+
+    Raises:
+        N/A
+
+    """
+    roto = nuke.nodes.Roto()
+    if pos:
+        roto['xpos'].setValue(pos[0] + 150)
+        roto['ypos'].setValue(pos[1] + 60)
+    if label:
+        roto['label'].setValue(label)
+
+    transform = roto['curves'].rootLayer.getTransform()
+
+    for frame in frange:
+
+        matrix = [
+            matrix['transform_matrix'].getValueAt(
+                frame, i
+            ) for i in xrange(16)
+        ]
+
+        for i, value in enumerate(matrix):
+            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
+            matrix_curve.addKey(frame, value)
+
+    return roto
 
 # =============================================================================
 
