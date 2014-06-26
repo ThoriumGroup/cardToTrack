@@ -1,7 +1,29 @@
+# =============================================================================
+# IMPORTS
+# =============================================================================
+
+# Nuke Imports
 try:
     import nuke
 except ImportError:
     pass
+
+# =============================================================================
+# EXPORTS
+# =============================================================================
+
+__all__ = [
+    'card_to_track',
+    'card_to_track_wrapper',
+    'corner_matrix_to_roto_matrix',
+    'corner_pin_to_corner_matrix',
+    'reconcile_to_corner',
+    'reconcile_to_tracks',
+]
+
+# =============================================================================
+# PRIVATE FUNCTIONS
+# =============================================================================
 
 
 def _card_to_track_panel():
@@ -71,6 +93,8 @@ def _card_to_track_panel():
 
     return panel_results
 
+# =============================================================================
+
 
 def _create_axis(card, offset, parent_axis, name, xform=True):
     """Creates an axis along the plane of a card.
@@ -123,6 +147,8 @@ def _create_axis(card, offset, parent_axis, name, xform=True):
 
     return axis
 
+# =============================================================================
+
 
 def _create_reconcile3D(axis, camera, background, name):
     """Creates a reconcile3D node attached to the axis
@@ -156,263 +182,9 @@ def _create_reconcile3D(axis, camera, background, name):
 
     return track
 
-
-def corner_matrix_to_roto_matrix(corner_matrix, frange, pos=None, label=None):
-    roto = nuke.nodes.Roto()
-    if pos:
-        roto['xpos'].setValue(pos[0] + 150)
-        roto['ypos'].setValue(pos[1] + 60)
-    if label:
-        roto['label'].setValue(label)
-
-    transform = roto['curves'].rootLayer.getTransform()
-
-    for frame in frange:
-
-        corner_matrix = [
-            corner_matrix['transform_matrix'].getValueAt(
-                frame, i
-            ) for i in xrange(16)
-        ]
-
-        for i, value in enumerate(corner_matrix):
-            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
-            matrix_curve.addKey(frame, value)
-
-    return roto
-
-
-def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
-    # Create our camera matrix
-    to_matrix = nuke.math.Matrix4()
-    from_matrix = nuke.math.Matrix4()
-
-    corner_new = nuke.nodes.CornerPin2D()
-    corner_new['transform_matrix'].setAnimated()
-    if pos:
-        corner_new['xpos'].setValue(pos[0])
-        corner_new['ypos'].setValue(pos[1])
-    corner_new['label'].setValue(
-        "{label}Matrix".format(
-            label=label if label else 'CornerPin'
-        )
-    )
-
-    for frame in frange:
-
-        # We'll grab all of our current frame's corners using
-        # some list comprehensions.
-        to_corners = [
-            corner_pin[knob].valueAt(frame) for knob in [
-                'to1', 'to2', 'to3', 'to4'
-            ]
-        ]
-        # This will return a list with 4 elements, but those
-        # elements will be a tuple pair. We need to unpack the two
-        # members of each tuple into a flat list.
-        to_corners = [
-            value for values in to_corners for value in values
-        ]
-
-        # Same as the above. We get a list with tuple elements, then
-        # unpack it into a flat list.
-        from_corners = [
-            corner_pin[knob].valueAt(frame) for knob in [
-                'from1', 'from2', 'from3', 'from4'
-            ]
-        ]
-        from_corners = [
-            value for values in from_corners for value in values
-        ]
-
-        # Pass our flat lists into the matrix methods.
-        to_matrix.mapUnitSquareToQuad(*to_corners)
-        from_matrix.mapUnitSquareToQuad(*from_corners)
-
-        corner_pin_matrix = to_matrix * from_matrix.inverse()
-        corner_pin_matrix.transpose()
-
-        for i in xrange(16):
-            corner_new['transform_matrix'].setValueAt(
-                corner_pin_matrix[i],
-                frame,
-                i
-            )
-
-    return corner_new
-
-
-def reconcile_to_corner(inputs, ref_frame, pos=None, label=None):
-    """Creates a CornerPin from 4 reconcile3D nodes
-
-    Args:
-        inputs : [<nuke.nodes.Reconcile3D>]
-            A list of exactly 4 Reconcile3D nodes, corresponding to the
-            desired corners of the corner pin.
-
-            Order should be:
-            Lower left, lower right, upper right, upper left
-            (Counter clockwise starting from lower left)
-
-        ref_frame : (int)
-            Reference frame to key corner pin to.
-
-        pos=None : (int, int)
-            Position to place returned CornerPin
-
-        label=None : (str)
-            What to label the node (in addition to a read out of the
-            ref_frame value).
-
-    Returns:
-        (<nuke.nodes.CornerPin2D>)
-            CornerPin node with animated 'to' fields, and 'from' fields set
-            to the ref_frame value.
-
-    Raises:
-        ValueError
-            If given less than or more than 4 Reconcile3D nodes in inputs.
-
-    """
-
-    if len(inputs) != 4:
-        raise ValueError(
-            "create_tracks needs exactly 4 Reconcile3D nodes in the 'inputs' "
-            "arg. Number of Reconcile3D nodes provided: "
-            "{tracks_length}".format(
-                tracks_length=len(inputs)
-            )
-        )
-
-    corner = nuke.nodes.CornerPin2D()
-    if pos:
-        corner['xpos'].setValue(pos[0])
-        corner['ypos'].setValue(pos[1])
-
-    corner["label"].setValue(
-        "{label}ref frame: {ref_frame}".format(
-            label=label + ' ' if label else '',
-            ref_frame=ref_frame
-        )
-    )
-
-    for i in xrange(4):
-        to_knob = "to{0}".format(i + 1)
-        from_knob = "from{0}".format(i + 1)
-
-        corner[to_knob].copyAnimations(inputs[i]['output'].animations())
-        corner[from_knob].setValue(inputs[i]['output'].getValueAt(ref_frame))
-
-    return corner
-
-
-def reconcile_to_tracks(inputs, pos=None, label=None, translate_only=False):
-    """Creates a tracking node with track information from tracks
-
-    Args:
-        inputs : [<nuke.nodes.Reconcile3D>]
-            A list of up to 4 Reconcile3D nodes to add trackers for.
-
-        pos=None : (int, int)
-            Position to place returned tracker.
-
-        label=None : (str)
-            What to label the node.
-
-        translate_only=False (bool)
-            If True, each tracker will be set only affect translation, not
-            rotation or sale.
-
-    Returns:
-        (<nuke.nodes.Tracker3>)
-            Tracker node with the input Reconcile3D tracks being the trackers.
-
-    Raises:
-        ValueError
-            If tracks has more than 4 members.
-
-    """
-    if len(inputs) > 4:
-        raise ValueError(
-            "reconcile_to_tracks takes at most 4 Reconcile3D nodes in the "
-            "'inputs' arg. Number of Reconcile3D nodes provided: "
-            "{tracks_length}".format(
-                tracks_length=len(inputs)
-            )
-        )
-
-    tracker = nuke.nodes.Tracker3()
-    if pos:
-        tracker['xpos'].setValue(pos[0])
-        tracker['ypos'].setValue(pos[1])
-    if label:
-        tracker['label'].setValue(label)
-
-    for i in xrange(len(inputs)):
-        enable_knob = 'enable{0}'.format(i + 1)
-        track_knob = 'track{0}'.format(i + 1)
-        use_knob = 'use_for{0}'.format(i + 1)
-
-        tracker[enable_knob].setValue(1)
-        tracker[track_knob].copyAnimations(inputs[i]['output'].animations())
-        if not translate_only:
-            tracker[use_knob].setValue(7)
-
-    return tracker
-
-
-def card_to_track_wrapper():
-    """A wrapper for card_to_track that handles node selection
-
-    Args:
-        N/A
-
-    Returns:
-        None
-
-    Raises:
-        N/A
-
-    """
-    # Grab our selected nodes, there should only be three and we'll iterate
-    # over them to determine which is which.
-    nodes = nuke.selectedNodes()
-
-    if len(nodes) != 3:
-        nuke.message(
-            "Please make sure you've selected a camera, a background and the "
-            "card you wish to track"
-        )
-        return
-
-    camera = None
-    card = None
-    background = None
-
-    # Assign all of our required nodes to variables
-    for node in nodes:
-        if node.Class() == 'Camera2':
-            camera = node
-        elif node.Class() == 'Card2':
-            card = node
-        else:
-            background = node
-
-    # Check that we have a node at each variable
-    if not camera or not card or not background:
-        nuke.message(
-            "No {camera}{cc}{card}{cb}{background} selected. Please select a "
-            "camera, a background, and the card you wish to track.".format(
-                camera='camera' if not camera else '',
-                cc=', ' if not camera and not card else '',
-                card='card' if not card else '',
-                cb=', ' if (not camera or not card) and not background else '',
-                background='background' if not background else ''
-            )
-        )
-        return
-    else:
-        card_to_track(card, camera, background)
+# =============================================================================
+# PUBLIC FUNCTIONS
+# =============================================================================
 
 
 def card_to_track(card, camera, background):
@@ -607,3 +379,271 @@ def card_to_track(card, camera, background):
         nuke.delete(main_track)
 
         return tracker
+
+# =============================================================================
+
+
+def card_to_track_wrapper():
+    """A wrapper for card_to_track that handles node selection
+
+    Args:
+        N/A
+
+    Returns:
+        None
+
+    Raises:
+        N/A
+
+    """
+    # Grab our selected nodes, there should only be three and we'll iterate
+    # over them to determine which is which.
+    nodes = nuke.selectedNodes()
+
+    if len(nodes) != 3:
+        nuke.message(
+            "Please make sure you've selected a camera, a background and the "
+            "card you wish to track"
+        )
+        return
+
+    camera = None
+    card = None
+    background = None
+
+    # Assign all of our required nodes to variables
+    for node in nodes:
+        if node.Class() == 'Camera2':
+            camera = node
+        elif node.Class() == 'Card2':
+            card = node
+        else:
+            background = node
+
+    # Check that we have a node at each variable
+    if not camera or not card or not background:
+        nuke.message(
+            "No {camera}{cc}{card}{cb}{background} selected. Please select a "
+            "camera, a background, and the card you wish to track.".format(
+                camera='camera' if not camera else '',
+                cc=', ' if not camera and not card else '',
+                card='card' if not card else '',
+                cb=', ' if (not camera or not card) and not background else '',
+                background='background' if not background else ''
+            )
+        )
+        return
+    else:
+        card_to_track(card, camera, background)
+
+# =============================================================================
+
+
+def corner_matrix_to_roto_matrix(corner_matrix, frange, pos=None, label=None):
+    roto = nuke.nodes.Roto()
+    if pos:
+        roto['xpos'].setValue(pos[0] + 150)
+        roto['ypos'].setValue(pos[1] + 60)
+    if label:
+        roto['label'].setValue(label)
+
+    transform = roto['curves'].rootLayer.getTransform()
+
+    for frame in frange:
+
+        corner_matrix = [
+            corner_matrix['transform_matrix'].getValueAt(
+                frame, i
+            ) for i in xrange(16)
+        ]
+
+        for i, value in enumerate(corner_matrix):
+            matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
+            matrix_curve.addKey(frame, value)
+
+    return roto
+
+# =============================================================================
+
+
+def corner_pin_to_corner_matrix(corner_pin, frange, pos=None, label=None):
+    # Create our camera matrix
+    to_matrix = nuke.math.Matrix4()
+    from_matrix = nuke.math.Matrix4()
+
+    corner_new = nuke.nodes.CornerPin2D()
+    corner_new['transform_matrix'].setAnimated()
+    if pos:
+        corner_new['xpos'].setValue(pos[0])
+        corner_new['ypos'].setValue(pos[1])
+    corner_new['label'].setValue(
+        "{label}Matrix".format(
+            label=label if label else 'CornerPin'
+        )
+    )
+
+    for frame in frange:
+
+        # We'll grab all of our current frame's corners using
+        # some list comprehensions.
+        to_corners = [
+            corner_pin[knob].valueAt(frame) for knob in [
+                'to1', 'to2', 'to3', 'to4'
+            ]
+        ]
+        # This will return a list with 4 elements, but those
+        # elements will be a tuple pair. We need to unpack the two
+        # members of each tuple into a flat list.
+        to_corners = [
+            value for values in to_corners for value in values
+        ]
+
+        # Same as the above. We get a list with tuple elements, then
+        # unpack it into a flat list.
+        from_corners = [
+            corner_pin[knob].valueAt(frame) for knob in [
+                'from1', 'from2', 'from3', 'from4'
+            ]
+        ]
+        from_corners = [
+            value for values in from_corners for value in values
+        ]
+
+        # Pass our flat lists into the matrix methods.
+        to_matrix.mapUnitSquareToQuad(*to_corners)
+        from_matrix.mapUnitSquareToQuad(*from_corners)
+
+        corner_pin_matrix = to_matrix * from_matrix.inverse()
+        corner_pin_matrix.transpose()
+
+        for i in xrange(16):
+            corner_new['transform_matrix'].setValueAt(
+                corner_pin_matrix[i],
+                frame,
+                i
+            )
+
+    return corner_new
+
+# =============================================================================
+
+
+def reconcile_to_corner(inputs, ref_frame, pos=None, label=None):
+    """Creates a CornerPin from 4 reconcile3D nodes
+
+    Args:
+        inputs : [<nuke.nodes.Reconcile3D>]
+            A list of exactly 4 Reconcile3D nodes, corresponding to the
+            desired corners of the corner pin.
+
+            Order should be:
+            Lower left, lower right, upper right, upper left
+            (Counter clockwise starting from lower left)
+
+        ref_frame : (int)
+            Reference frame to key corner pin to.
+
+        pos=None : (int, int)
+            Position to place returned CornerPin
+
+        label=None : (str)
+            What to label the node (in addition to a read out of the
+            ref_frame value).
+
+    Returns:
+        (<nuke.nodes.CornerPin2D>)
+            CornerPin node with animated 'to' fields, and 'from' fields set
+            to the ref_frame value.
+
+    Raises:
+        ValueError
+            If given less than or more than 4 Reconcile3D nodes in inputs.
+
+    """
+
+    if len(inputs) != 4:
+        raise ValueError(
+            "create_tracks needs exactly 4 Reconcile3D nodes in the 'inputs' "
+            "arg. Number of Reconcile3D nodes provided: "
+            "{tracks_length}".format(
+                tracks_length=len(inputs)
+            )
+        )
+
+    corner = nuke.nodes.CornerPin2D()
+    if pos:
+        corner['xpos'].setValue(pos[0])
+        corner['ypos'].setValue(pos[1])
+
+    corner["label"].setValue(
+        "{label}ref frame: {ref_frame}".format(
+            label=label + ' ' if label else '',
+            ref_frame=ref_frame
+        )
+    )
+
+    for i in xrange(4):
+        to_knob = "to{0}".format(i + 1)
+        from_knob = "from{0}".format(i + 1)
+
+        corner[to_knob].copyAnimations(inputs[i]['output'].animations())
+        corner[from_knob].setValue(inputs[i]['output'].getValueAt(ref_frame))
+
+    return corner
+
+# =============================================================================
+
+
+def reconcile_to_tracks(inputs, pos=None, label=None, translate_only=False):
+    """Creates a tracking node with track information from tracks
+
+    Args:
+        inputs : [<nuke.nodes.Reconcile3D>]
+            A list of up to 4 Reconcile3D nodes to add trackers for.
+
+        pos=None : (int, int)
+            Position to place returned tracker.
+
+        label=None : (str)
+            What to label the node.
+
+        translate_only=False (bool)
+            If True, each tracker will be set only affect translation, not
+            rotation or sale.
+
+    Returns:
+        (<nuke.nodes.Tracker3>)
+            Tracker node with the input Reconcile3D tracks being the trackers.
+
+    Raises:
+        ValueError
+            If tracks has more than 4 members.
+
+    """
+    if len(inputs) > 4:
+        raise ValueError(
+            "reconcile_to_tracks takes at most 4 Reconcile3D nodes in the "
+            "'inputs' arg. Number of Reconcile3D nodes provided: "
+            "{tracks_length}".format(
+                tracks_length=len(inputs)
+            )
+        )
+
+    tracker = nuke.nodes.Tracker3()
+    if pos:
+        tracker['xpos'].setValue(pos[0])
+        tracker['ypos'].setValue(pos[1])
+    if label:
+        tracker['label'].setValue(label)
+
+    for i in xrange(len(inputs)):
+        enable_knob = 'enable{0}'.format(i + 1)
+        track_knob = 'track{0}'.format(i + 1)
+        use_knob = 'use_for{0}'.format(i + 1)
+
+        tracker[enable_knob].setValue(1)
+        tracker[track_knob].copyAnimations(inputs[i]['output'].animations())
+        if not translate_only:
+            tracker[use_knob].setValue(7)
+
+    return tracker
