@@ -622,13 +622,13 @@ def matrix_to_roto_matrix(matrix, frange, pos=None, label=None):
 
     for frame in frange:
 
-        matrix = [
+        matrices = [
             matrix['transform_matrix'].getValueAt(
                 frame, i
             ) for i in xrange(16)
         ]
 
-        for i, value in enumerate(matrix):
+        for i, value in enumerate(matrices):
             matrix_curve = transform.getExtraMatrixAnimCurve(0, i)
             matrix_curve.addKey(frame, value)
 
