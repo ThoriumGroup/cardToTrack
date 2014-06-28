@@ -150,20 +150,16 @@ def _get_menu_item_index(menu, item):
 # ==============================================================================
 
 
-def run(menu=None, submenu=None, submenu_index=None, item_index=None):
+def run(menu='User', submenu='3D', submenu_index=None, item_index=None):
     """Add cardToTrack menu items.
 
     Args:
-        menu=None : (str)
+        menu='User' : (str)
             Top menu to add CardToTrack under.
 
-            Default: 'User'
-
-        submenu=None : (str)
+        submenu='3D' : (str)
             Submenu to add CardToTrack under. If no submenu desired, giving
-            this a value of '.' will result in no submenu being used.
-
-            Default: '3D'
+            this a value of None will result in no submenu being used.
 
         submenu_index=None : (int)
             Position of submenu within the top menu.
@@ -187,17 +183,13 @@ def run(menu=None, submenu=None, submenu_index=None, item_index=None):
 
     """
     # Find and setup our top level menu
-    if not menu:
-        menu = 'User'
     top_level_menu = nuke.menu('Nuke').findItem(menu)
     if not top_level_menu:
         # The top level menu item doesn't exist yet, we'll create it.
         top_level_menu = nuke.menu('Nuke').addMenu(menu)
 
     # Find and setup our submenu under the top level menu
-    if not submenu:
-        submenu = '3D'
-    if submenu != '.':
+    if submenu:
         dest_menu = top_level_menu.findItem(submenu)
         if not dest_menu:
             # The submenu doesn't exist yet, we'll create it.
