@@ -402,9 +402,11 @@ def card_to_track(card, camera, background):
             label=card_label
         )
 
-        if settings['output'] == "CornerPin(matrix)":
+        if settings['output'] != 'All':
             # No longer need corner_pin
             nuke.delete(corner_pin)
+            
+        if settings['output'] == "CornerPin(matrix)":
             return corner_matrix
 
         roto = matrix_to_roto_matrix(
@@ -415,8 +417,6 @@ def card_to_track(card, camera, background):
         )
 
         if settings['output'] == "Roto":
-            # No longer need corner_pin
-            nuke.delete(corner_pin)
             nuke.delete(corner_matrix)
             return roto
 
